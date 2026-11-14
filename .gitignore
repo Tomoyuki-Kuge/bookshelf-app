@@ -26,3 +26,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /compose.override.yaml
+
+# 手元で確認する参考資料
+/docs/reference/bookshelf-spec/
