@@ -1,0 +1,306 @@
+# テスト観点
+
+作成日: 2026-11-18
+
+## 読み方・確認の前提
+
+- 対象・資料の優先順位は [README.md](README.md) に従う。手動の受け入れ条件は [acceptance.md](acceptance.md)、内部制約・API書き込み・テスト実行結果を含む詳細なテスト観点は本書で扱う。文書の記載はテスト実行済みを示さない。
+- 12実装単位の並び順は受け入れ条件と共通とし、IDは `T-単位番号-連番`。テスト観点は「ID・何を確かめるか・区分・元になった設計書」の4列にまとめ、区分は正常系・異常系・境界値のいずれかとする。
+- 組み合わせの全列挙やテストコードは記載しない。特記のない観点では確認対象以外の条件を有効な状態にし、各機能のテストはその実装単位、単位12は横断確認と不足分を扱う。
+- Q-18・19・22〜25および物理定義の未確定部分は [questions.md](questions.md#未確定事項の確認先一覧) に従う。**（※仕様保留中）** は確認対象の予約であり、想定案を期待値として採用しない。回答・開発側の決定を元の設計書と本書へ反映してから検証し、未確定項目を合格扱いにしない。
+
+## テストユーザーの役割
+
+以下は確認作業での役割分担。5人とも同じ一般利用者であり、アプリの権限区分やDBのrole列を追加する意味ではない。初期利用者の共通パスワードは `password`。指定の初期データは [features.md](features.md#初期データ) を参照する。
+
+| 記号 | テストユーザー | テスト上の役割 | 主な用途・関連観点 |
+|---|---|---|---|
+| A | 山田太郎（`yamada@example.com`） | メインの一般利用者・基準ユーザー | 書籍登録と自分の書籍の編集・削除、レビュー投稿・編集・削除、お気に入り、いいねを一通り確認する。[書籍管理](#6-自分の書籍を管理できる)・[レビュー](#7-レビューを投稿管理できる)・[仕上げ](#12-基本要件を通して確認する仕上げ)の基準にする |
+| B | 鈴木花子（`suzuki@example.com`） | 別の一般利用者・他者認可の検証 | Aの書籍・レビューについて、Webの編集画面・更新・削除がそれぞれ403になり、操作も非表示となることを確認する。B自身の投稿は操作できることも確認する（T-6-4〜5、T-7-7〜8） |
+| C | 田中一郎（`tanaka@example.com`） | レビュー・いいねの相互検証 | Aとレビューを投稿し合い、いいねの追加・解除・件数とランキングの集計を確認する。通常操作では自分のレビューへのいいねも許可されることを確認する（T-7-2、T-8-1〜3、T-10-2〜3） |
+| D | 佐藤美咲（`sato@example.com`） | データ保持・件数と入力の境界値検証 | 追加の確認用データでお気に入り0・1・10・11件、入力不正後の保持、多件数レビューの全件表示を確認する。レビュー一覧はページ分割しない（T-9-5、T-6-16、T-7-6、T-4-7） |
+| E | 高橋健太（`takahashi@example.com`） | 別作成者の確認用データ・公開APIの検証 | 初期11冊とは別にEを作成者とする書籍を用意し、所有者の異なるデータを確認する。公開APIのPOST・PUTに実在するuser_idを指定するケースにも使う（T-6-4〜5、T-11-9、T-12-4） |
+
+- Bの「他人は403」という確認はWebの書籍・レビューに適用する。ジャンルは全利用者共通で作成者を持たず、全認証済み利用者が管理できる（[権限マトリクス](permissions-api.md#権限マトリクス)）。
+- 通常操作の自己いいねを許可する条件と、Seederが生成するいいねで本人を除外する条件を分ける（T-8-2、T-3-6）。Cの役割を理由に自己いいねを禁止しない。
+- 公開APIは書き込みも認証不要。Eの用途は送信する実在user_idや別作成者データの準備であり、EでのログインやWebの本人制限をAPIの前提にしない。PUTによる作成者変更の可否はQ-18（※仕様保留中）として、回答後に確認する。
+- ゲストの確認はログアウト状態で行う。会員登録の成功確認には5人とは別の未登録メールを使い、既存メールでの登録は重複拒否の確認に使う。
+- 必要な場面で5人の用途を組み合わせてよい。テストコードでは目的に合う利用者をFactory等で独立して用意でき、DBのIDを1〜5と固定せず、所有者・他者・参照IDの関係を明示する。
+
+## 確認用データの準備
+
+- 初回Seederの確認は指定データだけの状態で行う。5人・10ジャンル・11冊・32レビュー、お気に入り各3〜5冊、いいね各レビュー0〜3人の確認と、追加データを使う境界値・認可の確認を分ける。追加後の総件数を初回Seederの合否に使わない（[初期データ](features.md#初期データ)、T-3-1〜19）。
+- 初期11冊の作成者は既存要件の `User::first()`（山田太郎想定）を維持する。Eなどを別作成者にする場合は、初期11冊を付け替えず、未使用ISBNの追加書籍をテスト用データとして用意する。ジャンルに作成者は割り当てない。
+- Dのページ分割確認では、お気に入りを0・1・10・11件にするデータを用意する。書籍一覧・ジャンル内書籍は各対象の件数を別に調整し、レビューは10件を超えても全件表示されることを確認する。
+- ランキングは平均の丸め差、同平均での件数差、同平均・同件数でのID順を計算できるデータを用意する。相互レビューや初期Seederだけで必要な同点条件が揃うと仮定しない。
+- トグル確認前に対象利用者の登録状態と全体件数を揃え、0件表示・削除・複数ページなどの場面ごとに独立した状態を使う。同時操作の期待結果はQ-23（※仕様保留中）、解除後のページ補正はQ-24（※仕様保留中）の決定後に確認する。
+
+## 1. 共通データ基盤
+
+対応する受け入れ条件: [単位1](acceptance.md#1-共通データ基盤)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-1-1 | 基本7業務表・44列の物理名、型、長さ、主キー、明示されたNOT NULL・NULL許可・日時列が定義に一致する | 正常系 | [data.md](data.md#テーブル定義書) |
+| T-1-2 | `book_genre`・`favorites`・`review_likes`の名称と専用ID・組のUNIQUEが一致し、booksに単一genre_id・平均評価・レビュー件数の保存列を設けない | 正常系 | [data.md](data.md#テーブル定義書) |
+| T-1-3 | 利用者・書籍・ジャンル・レビュー間の関連が取得でき、favorites・review_likesの明示的な中間表指定と中間行の日時の取り扱いが設計に一致する | 正常系 | [data.md](data.md#laravel標準との差分実装時の指定) |
+| T-1-4 | Userのパスワードがハッシュ化され、確認用パスワードを保存せず、標準の認証列を保持する | 正常系 | [data.md](data.md#t1-users) |
+| T-1-5 | 外部キーを有効にしたDBで、全参照列の存在しない親IDと明示された必須列のNULL保存が拒否される | 異常系 | [data.md](data.md#外部キーと親削除時の動作)、[data.md](data.md#テーブル定義書) |
+| T-1-6 | email・isbn・ジャンル名と、3中間表の組の一意制約に違反する保存が拒否される | 異常系 | [data.md](data.md#テーブル定義書) |
+| T-1-7 | 同一利用者・同一書籍へ複数レビューを保存でき、reviewsの組にUNIQUEを設けない | 正常系 | [data.md](data.md#t5-reviews) |
+| T-1-8 | 書籍の物理削除でレビュー・そのいいね・お気に入り・book_genreが連鎖削除され、利用者・ジャンル本体・無関係な書籍と関連行が残る | 正常系 | [data.md](data.md#外部キーと親削除時の動作) |
+| T-1-9 | レビュー単独の物理削除でそのいいねが消え、親書籍・他レビューとその関連行が残る | 正常系 | [data.md](data.md#外部キーと親削除時の動作) |
+| T-1-10 | 書籍と紐付くジャンルの直接削除をRESTRICTが拒否し、ジャンル・書籍・中間行を維持する | 異常系 | [data.md](data.md#外部キーと親削除時の動作) |
+| T-1-11 | DB上で利用者を削除した場合に、その所有書籍・投稿・お気に入り・いいねと孫の関連行が定義どおり連鎖削除される（利用者削除画面は追加しない） | 正常系 | [data.md](data.md#外部キーと親削除時の動作) |
+| T-1-12 | 先頭0を含むISBNを文字列のまま保持し、出版日をdateとして扱い、集計値を保存列に依存せず取得できる | 正常系 | [data.md](data.md#t2-books) |
+| T-1-13 | （※仕様保留中）物理定義：DB製品・バージョン・照合順序、NULL・既定値・日時・採番・追加制約・認証補助とセッション構成は、開発側の決定後に実DBで照合する | 正常系 | [data.md](data.md#埋まらなかった箇所)、[questions.md](questions.md#未確定事項の確認先一覧) |
+
+---
+
+## 2. 既存画面への接続と認証
+
+対応する受け入れ条件: [単位2](acceptance.md#2-既存画面への接続と認証)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-2-1 | Fortifyで会員登録でき、名前・メール・ハッシュ化したパスワードが保存され、自動ログイン後は `/`へ遷移する | 正常系 | [features.md](features.md#機能一覧)、[data.md](data.md#t1-users) |
+| T-2-2 | 登録の名前・メール・パスワードの必須、メール形式・一意性、確認一致を検証し、不正なら利用者を作らない | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-2-3 | 登録の名前・メールの255／256文字、パスワードの7／8文字を確認する（メールは文字数以外の条件を満たす値を使う） | 境界値 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-2-4 | ログインのメール必須・メール形式・パスワード必須を検証し、登録専用のメール255文字・パスワード8文字条件を追加しない | 異常系 | [screens.md](screens.md#その他の画面の差分)、[screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-2-5 | 正しい資格情報でログインでき、元の保護ページがあればそこへ、なければ `/`へ遷移する | 正常系 | [screens.md](screens.md#画面遷移図)、[features.md](features.md#機能一覧) |
+| T-2-6 | 未登録メール・パスワード不一致で認証せず、確定した認証失敗文言を入力欄下に表示する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-2-7 | 登録・ログインの入力不正で元フォームに戻り、登録は名前・メール、ログインはメールを保持し、パスワード・確認入力は保持しない | 異常系 | [screens.md](screens.md#画面遷移図)、[screens.md](screens.md#sc-13-会員登録) |
+| T-2-8 | 認証済みの `/login`・`/register`アクセスは `/`へ遷移し、ログアウトでセッションを破棄して `/login`へ遷移する | 正常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[screens.md](screens.md#画面遷移図) |
+| T-2-9 | 各Web保護経路のGET・書き込みに対するゲストのアクセスが認証へ誘導され、公開の書籍一覧・詳細・ランキングは閲覧できる | 異常系 | [permissions-api.md](permissions-api.md#権限マトリクス)、[permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-2-10 | 共通ナビと各Bladeが参照する名前付きルート・引数が接続され、PC・モバイルで同じ遷移先となり、ルート未定義で描画が失敗しない | 正常系 | [screens.md](screens.md#画面遷移図)、[permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-2-11 | ゲストにも保護画面へのナビを表示し、認証済みは名前・ログアウト、モバイルはメールとメニュー開閉、ゲストはログイン・新規登録を表示する | 正常系 | [screens.md](screens.md#画面遷移図) |
+| T-2-12 | 認証画面の4項目／2項目と相互リンク・ロゴの `/`リンクを維持し、共通ナビや追加の認証フローを表示しない | 正常系 | [screens.md](screens.md#前提根拠)、[screens.md](screens.md#画面遷移図)、[features.md](features.md#今回作らないもの) |
+| T-2-13 | Web経路のパス・メソッド・ルート名が一覧に一致し、create固定パスを先に解決し、GETで状態変更せず、GET `/books`を追加しない | 正常系 | [permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-2-14 | 全フォームのnovalidateを維持し、サーバー側の日本語エラーを欄下に表示する。入力検証のFormRequest・messages()分離という設計要件も照合する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-2-15 | （※仕様保留中）Q-19：未指定の認証エラー文言、確認不一致・認証失敗のエラーキーと表示欄は、回答後に照合する | 異常系 | [questions.md](questions.md#q-19画面のエラー文言表示先)、[screens.md](screens.md#入力チェックとエラーメッセージ) |
+
+---
+
+## 3. 指定の初期データを投入できる（Seeder）
+
+クラス構成・投入値・再実行方針の正本は [初期データ設計](features.md#初期データ)。個別Seederは必要な依存データを準備して検証し、初回件数と再実行後の結果を分けて扱う。
+
+対応する受け入れ条件: [単位3](acceptance.md#3-指定の初期データを投入できるseeder)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-3-1 | DatabaseSeederを新規の検証用DBへ実行すると、指定5利用者・10ジャンル・11書籍・32レビューと指定の関連データが揃う | 正常系 | [features.md](features.md#初期データ) |
+| T-3-2 | UserSeeder単独で指定5名の名前・emailをfirstOrCreateで作成し、全員を同じ一般利用者として扱う。確認用の役割を権限列に保存しない | 正常系 | [features.md](features.md#userseederの初期利用者)、[data.md](data.md#t1-users) |
+| T-3-3 | UserSeeder・GenreSeederを準備してBookSeederを実行すると、指定11冊のタイトル・著者・ISBN・出版日・ジャンルと固定画像URLが揃い、説明が設定され、全書籍の作成者がUser::first()（新規DBでは山田太郎）となる | 正常系 | [features.md](features.md#bookseederの初期書籍) |
+| T-3-4 | ReviewSeederがcreate()で初回32件を作成し、5人・11冊との関連、各書籍2〜4件、評価3〜5、具体的コメントという条件を満たす | 境界値 | [features.md](features.md#seederの責務と呼び出し順) |
+| T-3-5 | FavoriteSeederが各利用者に3〜5冊をsyncWithoutDetaching()で設定し、全参照先が存在して組が重複しない | 境界値 | [features.md](features.md#seederの責務と呼び出し順)、[data.md](data.md#t6-favorites) |
+| T-3-6 | ReviewLikeSeederが各レビューに0〜3人をsyncWithoutDetaching()で設定し、投稿者本人を除外して組が重複しない | 境界値 | [features.md](features.md#seederの責務と呼び出し順)、[data.md](data.md#t7-review_likes) |
+| T-3-7 | DatabaseSeederのrun()がUserSeeder→GenreSeeder→BookSeeder→ReviewSeeder→FavoriteSeeder→ReviewLikeSeederの順で呼び出し、個別データの生成を各クラスへ分離する | 正常系 | [features.md](features.md#seederの責務と呼び出し順) |
+| T-3-8 | UserSeederの再実行でemailが同じ利用者のID・名前・既存パスワードを維持し、指定メールの行を重複作成しない | 正常系 | [features.md](features.md#再実行と未確定事項) |
+| T-3-9 | ReviewSeederはcreate()を使い、再実行の事前クリア・重複防止を追加しない。初回32件という条件を再実行後の総件数へ適用しない | 正常系 | [features.md](features.md#再実行と未確定事項)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-3-10 | シード専用の評価3〜5・本人いいね除外を、通常投稿の評価1〜5・本人いいね可という業務条件へ持ち込まない | 正常系 | [features.md](features.md#初期データ)、[features.md](features.md#機能一覧) |
+| T-3-11 | GenreSeeder単独で固定10ジャンルを指定名どおりにfirstOrCreateで投入し、nameの集合が一致する | 正常系 | [features.md](features.md#seederの責務と呼び出し順) |
+| T-3-12 | GenreSeederの再実行で同じnameの既存行を再利用し、同名を重複作成せず、書籍やbook_genreを変更しない | 正常系 | [features.md](features.md#再実行と未確定事項)、[data.md](data.md#t3-genres) |
+| T-3-13 | BookSeederの再実行で同じISBNの書籍をfirstOrCreateにより再利用し、書籍ID・既存の書籍項目・作成者を上書きしない | 正常系 | [features.md](features.md#再実行と未確定事項) |
+| T-3-14 | BookSeederのgenres()->sync()が各書籍の指定ジャンル集合を反映し、再実行では集合を再同期する。書籍本体の既存値維持と区別する | 正常系 | [features.md](features.md#bookseederの初期書籍)、[features.md](features.md#再実行と未確定事項) |
+| T-3-15 | UserSeederが新規作成時にHash::make('password')を使用し、平文を保存せず、Hash::checkで5名のパスワードを照合できる。ハッシュ文字列の固定値一致を要求しない | 正常系 | [features.md](features.md#userseederの初期利用者)、[data.md](data.md#t1-users) |
+| T-3-16 | FavoriteSeeder・ReviewLikeSeederの再実行で既存の組を削除せず、同じ組を重複作成しない。各初回範囲を再実行後の累計の上限としない | 正常系 | [features.md](features.md#再実行と未確定事項) |
+| T-3-17 | UserSeeder・GenreSeeder・BookSeeder・ReviewSeeder・FavoriteSeeder・ReviewLikeSeederが責務別のクラスとして存在し、各クラスが対応表のデータだけを投入する構成となる | 正常系 | [features.md](features.md#seederの責務と呼び出し順) |
+| T-3-18 | （※仕様保留中）既存DBの先頭利用者が山田以外の場合、個別Seederの依存データ不足、全体の途中失敗での処理・保存範囲を、決定後に確認する | 異常系 | [features.md](features.md#再実行と未確定事項)、[data.md](data.md#埋まらなかった箇所) |
+| T-3-19 | （※仕様保留中）説明・レビューコメントの具体的本文、レビュー配分とお気に入り・いいねの具体的な組・選択方法は、確定済みの件数条件と分けて決定後に照合する | 正常系 | [features.md](features.md#再実行と未確定事項) |
+
+---
+
+## 4. 公開の書籍一覧・詳細を閲覧できる
+
+対応する受け入れ条件: [単位4](acceptance.md#4-公開の書籍一覧詳細を閲覧できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-4-1 | ゲスト・認証済みとも `/`と書籍詳細を閲覧でき、対象なし・削除済みの詳細は404になる | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[behavior.md](behavior.md#確定している結果) |
+| T-4-2 | 全書籍を登録日時降順・同日時ID降順で取得し、更新しても登録日時による順序を維持する | 正常系 | [features.md](features.md#機能一覧)、[screens.md](screens.md#sc-01-書籍一覧) |
+| T-4-3 | 書籍0・1・10・11件の表示、10件単位のページ分割とページリンク、0件メッセージを確認する | 境界値 | [screens.md](screens.md#sc-01-書籍一覧) |
+| T-4-4 | 一覧にタイトル・著者・複数ジャンル・画像と詳細リンクを表示し、altはタイトル、画像未設定は「画像なし」とする | 正常系 | [screens.md](screens.md#sc-01-書籍一覧) |
+| T-4-5 | 平均評価の小数1桁表示と四捨五入した星の対応、丸めの前後、レビューなしの平均表示省略を確認する | 境界値 | [screens.md](screens.md#sc-01-書籍一覧) |
+| T-4-6 | 詳細にタイトル・著者・ISBN・出版日・画像・全ジャンルを表示し、説明は値があるときだけ表示する | 正常系 | [screens.md](screens.md#sc-02-書籍詳細) |
+| T-4-7 | レビューを登録日時降順で全件表示し、10件を超えても分割せず、投稿者名・星・コメント・投稿日Y/m/d・いいね数を表示する | 正常系 | [screens.md](screens.md#sc-02-書籍詳細) |
+| T-4-8 | レビュー0件、いいね0件、画像・説明未設定でも詳細を表示でき、所定の空表示となる | 境界値 | [screens.md](screens.md#sc-02-書籍詳細) |
+| T-4-9 | ゲストには投稿案内・お気に入りといいねのログインリンクを表示し、投稿フォームと本人操作を表示しない | 正常系 | [screens.md](screens.md#sc-02-書籍詳細)、[permissions-api.md](permissions-api.md#権限マトリクス) |
+| T-4-10 | 認証済みの投稿フォームの評価初期値が空、コメントが空となり、お気に入り・いいね状態と本人用の操作表示が一致する | 正常系 | [screens.md](screens.md#sc-02-書籍詳細) |
+| T-4-11 | 一覧への戻り先、書籍登録リンク、成功フラッシュと項目別エラーの表示箇所を既存Bladeのまま接続する | 正常系 | [screens.md](screens.md#sc-01-書籍一覧)、[screens.md](screens.md#sc-02-書籍詳細) |
+| T-4-12 | （※仕様保留中）Q-25：出版日のモデルからBladeへの受け渡しと詳細表示を、開発側の決定後に編集フォームへの影響と併せて確認する | 正常系 | [questions.md](questions.md#q-25出版日のbladeへの受け渡し形式) |
+
+---
+
+## 5. ジャンルを管理できる
+
+対応する受け入れ条件: [単位5](acceptance.md#5-ジャンルを管理できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-5-1 | 全認証済み利用者が共通ジャンルを閲覧・登録・編集・条件付き削除でき、管理者・所有者の区別を追加しない | 正常系 | [permissions-api.md](permissions-api.md#権限マトリクス)、[data.md](data.md#t3-genres) |
+| T-5-2 | ゲストの全ジャンル経路はログインへ誘導し、存在しない対象の詳細・編集・更新・削除は認証後404となる | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[behavior.md](behavior.md#確定している結果) |
+| T-5-3 | 一覧はID昇順で全ジャンルの名前・書籍数・詳細／登録／編集／削除の導線を表示する | 正常系 | [screens.md](screens.md#その他の画面の差分)、[features.md](features.md#機能一覧) |
+| T-5-4 | 詳細は対象の書籍だけを登録日時降順に10件／ページで表示し、対象ジャンルの強調・書籍詳細リンク・書籍一覧への戻り先が一致する | 正常系 | [screens.md](screens.md#その他の画面の差分) |
+| T-5-5 | 一覧0件、対象書籍0・1・10・11件の表示・ページ分割・所定の空表示を確認する | 境界値 | [screens.md](screens.md#その他の画面の差分) |
+| T-5-6 | 新規名で登録・編集でき、編集初期値・登録の空初期値・更新時の自身除外による同名維持を確認する | 正常系 | [screens.md](screens.md#sc-08-ジャンル登録sc-09と共通)、[screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-5-7 | 未入力・前後空白除去後の空名を拒否し、保存せず元フォームに入力と欄下エラーを表示する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ)、[screens.md](screens.md#sc-08-ジャンル登録sc-09と共通) |
+| T-5-8 | ジャンル名255／256文字で上限を確認する | 境界値 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-5-9 | 前後空白除去・英字大小同一の重複判定と全角半角の区別が、登録・更新・実DBの一意制約で整合する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ)、[data.md](data.md#t3-genres) |
+| T-5-10 | 未紐付きジャンルだけを削除し、紐付きありでは書籍・ジャンル・中間行を維持して確定した削除不可文言を返す | 異常系 | [data.md](data.md#外部キーと親削除時の動作)、[screens.md](screens.md#操作結果とエラーの扱い) |
+| T-5-11 | 削除の事前確認後に紐付けが追加された競合もDBのRESTRICTで拒否し、同じ削除不可結果となる | 異常系 | [data.md](data.md#外部キーと親削除時の動作)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-5-12 | 登録・更新・削除後は一覧へ戻り、各確定フラッシュを表示する。登録・編集のキャンセルと削除確認の中止では変更しない | 正常系 | [screens.md](screens.md#画面遷移図)、[screens.md](screens.md#操作結果とエラーの扱い) |
+| T-5-13 | （※仕様保留中）Q-19：未指定のジャンル名エラー文言を回答後に照合する（必須・上限・一意条件は先行確認する） | 異常系 | [questions.md](questions.md#q-19画面のエラー文言表示先) |
+
+---
+
+## 6. 自分の書籍を管理できる
+
+対応する受け入れ条件: [単位6](acceptance.md#6-自分の書籍を管理できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-6-1 | 有効な入力で書籍と1つ以上のジャンルを登録でき、任意の説明・画像URLの未入力でも登録できる | 正常系 | [features.md](features.md#機能一覧)、[screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-2 | Web登録のuser_idは認証情報から設定し、偽装したuser_idを採用せず、更新でも作成者を変更しない | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[behavior.md](behavior.md#書籍データの状態遷移) |
+| T-6-3 | 登録フォームは空・ジャンル未選択、編集フォームは既存値と紐付き集合を表示し、入力不正後は旧入力を優先する | 正常系 | [screens.md](screens.md#sc-03-書籍登録sc-04と共通)、[screens.md](screens.md#その他の画面の差分) |
+| T-6-4 | ゲストの登録・編集・更新・削除をログインへ誘導し、他人のGET編集・PUT更新・DELETEをBookPolicyでそれぞれ403にする | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[behavior.md](behavior.md#代表シーケンス書籍の編集) |
+| T-6-5 | 本人だけに編集・削除操作を表示し、対象なし・削除済みの編集・更新・削除は404となる | 異常系 | [screens.md](screens.md#sc-02-書籍詳細)、[behavior.md](behavior.md#確定している結果) |
+| T-6-6 | タイトル・著者・ISBN・出版日・ジャンルの必須違反を登録・更新の両方で拒否し、保存しない | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-7 | タイトル・著者255／256文字、説明5,000／5,001文字、画像URL255／256文字で上限を確認する | 境界値 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-8 | ISBN12／13／14桁を確認し、13桁は半角数字だけを許可する。先頭0を保持し、ハイフン・全角数字・英字を自動変換せず拒否する | 境界値 | [screens.md](screens.md#入力チェックとエラーメッセージ)、[questions.md](questions.md#q-04バリデーションルールの設計シート2-行19) |
+| T-6-9 | ISBNのチェックディジット検証を追加せず、形式が有効な未使用13桁を受け付ける | 正常系 | [questions.md](questions.md#q-04バリデーションルールの設計シート2-行19) |
+| T-6-10 | 他書籍のISBN重複を拒否し、自身のISBNを維持した更新を許可する。桁数・重複の確定文言を表示する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-11 | 有効な出版日と未来日を受け付け、不正日付を拒否する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-12 | HTTP・HTTPSの画像URLを受け付け、不正URL・他スキームを拒否する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-13 | 複数ジャンルの登録、更新時の追加・一部解除・別集合への置換を反映し、重複した中間行を作らない | 正常系 | [features.md](features.md#機能一覧)、[behavior.md](behavior.md#代表シーケンス書籍の編集) |
+| T-6-14 | ジャンル0個／1個／複数個の選択を確認し、0個は拒否する。存在しないID・重複IDも登録・更新とも拒否する | 境界値 | [screens.md](screens.md#入力チェックとエラーメッセージ)、[data.md](data.md#t4-book_genre) |
+| T-6-15 | ジャンル自体が0件のフォームに確定した登録案内を表示し、案内内リンクは追加しない | 境界値 | [screens.md](screens.md#sc-03-書籍登録sc-04と共通) |
+| T-6-16 | 入力不正で本文・任意項目・ジャンル選択を保持し、編集で全ジャンルを外した場合も既存選択を復活させない | 異常系 | [screens.md](screens.md#実装時に照合すること)、[behavior.md](behavior.md#代表シーケンス書籍の編集) |
+| T-6-17 | タイトル必須「タイトルは必須です。」等の確定文言を欄下に表示し、genresと配列要素のエラー表示を接続する | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-6-18 | 登録・更新後は対象詳細、削除後は一覧へ遷移し、各操作の確定フラッシュを表示する | 正常系 | [screens.md](screens.md#操作結果とエラーの扱い) |
+| T-6-19 | 編集開始・キャンセルではDBを変更せず、更新でレビュー・お気に入り・いいねを削除せず、下書き・公開状態・復元機能を追加しない | 正常系 | [screens.md](screens.md#画面遷移図)、[behavior.md](behavior.md#書籍データの状態遷移) |
+| T-6-20 | 削除確認の中止は送信せず、承認後は書籍・全関連行を物理削除してジャンル本体を残す。削除後の参照・更新・再削除は404となる | 正常系 | [screens.md](screens.md#画面遷移図)、[data.md](data.md#外部キーと親削除時の動作)、[behavior.md](behavior.md#書籍データの状態遷移) |
+| T-6-21 | （※仕様保留中）Q-19・25：未指定エラー文言と出版日の受け渡しを決定後に確認し、編集の日付欄に既存値が表示されることを確認する | 正常系 | [questions.md](questions.md#q-19画面のエラー文言表示先)、[questions.md](questions.md#q-25出版日のbladeへの受け渡し形式) |
+| T-6-22 | （※仕様保留中）Q-23：保存途中の失敗、検証後のISBN重複・参照先消失、同時編集・編集中の削除で、保存範囲・応答・入力保持が決定した方針に従う | 異常系 | [questions.md](questions.md#q-23保存失敗同時操作障害時の扱い)、[behavior.md](behavior.md#未確定の保存競合障害応答) |
+
+---
+
+## 7. レビューを投稿・管理できる
+
+対応する受け入れ条件: [単位7](acceptance.md#7-レビューを投稿管理できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-7-1 | 認証済みが詳細内で投稿でき、投稿者を認証情報、対象書籍を経路から設定する。独立した投稿ページを追加しない | 正常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[screens.md](screens.md#sc-02-書籍詳細) |
+| T-7-2 | 同じ利用者が同じ書籍に複数投稿でき、自分の書籍・他人の書籍のどちらにも投稿できる | 正常系 | [features.md](features.md#機能一覧)、[data.md](data.md#t5-reviews) |
+| T-7-3 | 評価の未入力・非整数、コメントの未入力を投稿・更新とも拒否し、保存しない | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-7-4 | 評価0／1／5／6、コメント1,000／1,001文字で許容範囲を確認する | 境界値 | [screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-7-5 | 編集画面に対象書籍タイトル・既存評価・コメントを表示し、評価のラジオと投稿フォームの選択欄の差分を維持する | 正常系 | [screens.md](screens.md#その他の画面の差分) |
+| T-7-6 | 投稿・更新の入力不正で元フォームへ戻り、評価・コメントと欄下の日本語エラーを表示する。必須マークの有無にかかわらず必須とする | 異常系 | [screens.md](screens.md#入力チェックとエラーメッセージ)、[screens.md](screens.md#実装時に照合すること) |
+| T-7-7 | 投稿者本人だけがGET編集・PUT更新・DELETEでき、他人は各経路で403となり、本人以外へ操作を表示しない | 異常系 | [permissions-api.md](permissions-api.md#権限マトリクス)、[permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-7-8 | 書籍作成者も他人のレビューを編集・削除できず、利用者ID等の偽装で投稿者を変更できない | 異常系 | [screens.md](screens.md#sc-02-書籍詳細)、[permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-7-9 | ゲストの投稿・編集・更新・削除はログインへ誘導し、存在しない書籍への投稿・存在しないレビューの編集・更新・削除は認証後404となる | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[behavior.md](behavior.md#確定している結果) |
+| T-7-10 | 投稿・更新・削除後は対象書籍の詳細へ戻り、各確定フラッシュと更新後のレビューを表示する | 正常系 | [screens.md](screens.md#操作結果とエラーの扱い) |
+| T-7-11 | 編集のキャンセル・削除確認の中止で変更せず、削除承認でそのレビューとそのいいねだけを物理削除する | 正常系 | [screens.md](screens.md#画面遷移図)、[data.md](data.md#外部キーと親削除時の動作) |
+| T-7-12 | （※仕様保留中）Q-19・23：未指定エラー文言と競合・障害時の保存結果／応答を回答後に確認する | 異常系 | [questions.md](questions.md#q-19画面のエラー文言表示先)、[questions.md](questions.md#q-23保存失敗同時操作障害時の扱い) |
+
+---
+
+## 8. レビューへいいねできる
+
+対応する受け入れ条件: [単位8](acceptance.md#8-レビューへいいねできる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-8-1 | 認証済みの追加・解除で認証利用者と対象レビューの組だけを切り替え、再表示の状態・件数と保存結果が一致する | 正常系 | [features.md](features.md#機能一覧)、[data.md](data.md#t7-review_likes) |
+| T-8-2 | 自分の投稿にも追加・解除でき、他利用者のいいね状態を変更しない | 正常系 | [features.md](features.md#機能一覧)、[permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-8-3 | 0→1→0件の変化と複数利用者の合計件数を確認し、組の重複を作らない | 境界値 | [data.md](data.md#t7-review_likes)、[screens.md](screens.md#sc-02-書籍詳細) |
+| T-8-4 | ゲストには件数付きログインリンクを表示し、直接POSTはログインへ誘導する。認証後の対象なし・削除済みは404となる | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[screens.md](screens.md#sc-02-書籍詳細) |
+| T-8-5 | 操作後は対象書籍詳細へ戻り、フラッシュを表示せず、レビュー削除後にいいねだけが残らない | 正常系 | [screens.md](screens.md#操作結果とエラーの扱い)、[data.md](data.md#外部キーと親削除時の動作) |
+| T-8-6 | （※仕様保留中）Q-23：連打・同時操作・通信失敗時の受付順序と状態・再送方針は、回答後に確認する | 異常系 | [questions.md](questions.md#q-23保存失敗同時操作障害時の扱い) |
+
+---
+
+## 9. お気に入りを管理できる
+
+対応する受け入れ条件: [単位9](acceptance.md#9-お気に入りを管理できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-9-1 | 自分・他人どちらの書籍も追加・解除でき、認証利用者の登録分だけを変更し、書籍本体や他利用者のお気に入りを変更しない | 正常系 | [permissions-api.md](permissions-api.md#権限マトリクス)、[data.md](data.md#t6-favorites) |
+| T-9-2 | 詳細からの操作は対象詳細、一覧からの操作はお気に入り一覧へ戻り、フラッシュを表示しない | 正常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[screens.md](screens.md#操作結果とエラーの扱い) |
+| T-9-3 | 一覧は自分の登録分だけを追加日時降順で取得し、書籍登録日時による並びに置き換えない | 正常系 | [features.md](features.md#機能一覧)、[data.md](data.md#t6-favorites) |
+| T-9-4 | 一覧に画像・タイトル・著者・ISBN・詳細リンク・解除操作を表示し、画像なしは既存の「No Image」を維持する | 正常系 | [screens.md](screens.md#その他の画面の差分) |
+| T-9-5 | 0・1・10・11件で10件／ページの分割と空表示・書籍一覧リンクを確認する | 境界値 | [screens.md](screens.md#その他の画面の差分) |
+| T-9-6 | ゲストの一覧・直接POSTはログインへ誘導し、認証後の対象書籍なし・削除済みは404になる | 異常系 | [permissions-api.md](permissions-api.md#webルーティング一覧)、[behavior.md](behavior.md#確定している結果) |
+| T-9-7 | 繰り返し操作でも同一利用者・書籍の組を重複保存せず、削除済み書籍のお気に入りが残らない | 正常系 | [data.md](data.md#t6-favorites)、[data.md](data.md#外部キーと親削除時の動作) |
+| T-9-8 | （※仕様保留中）Q-24：最終ページの最後の1冊を解除する場合・全件なくなる場合の戻り先と表示を、回答後に確認する | 境界値 | [questions.md](questions.md#q-24お気に入り解除後のページ補正) |
+| T-9-9 | （※仕様保留中）Q-23：連打・同時操作・通信失敗時の状態と再送方針は、回答後に確認する | 異常系 | [questions.md](questions.md#q-23保存失敗同時操作障害時の扱い) |
+
+---
+
+## 10. 評価ランキングを閲覧できる
+
+対応する受け入れ条件: [単位10](acceptance.md#10-評価ランキングを閲覧できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-10-1 | ゲスト・認証済みとも閲覧でき、レビューなしを除外して最大10冊だけ取得する | 正常系 | [features.md](features.md#機能一覧)、[permissions-api.md](permissions-api.md#権限マトリクス) |
+| T-10-2 | 未丸め平均の降順で比較し、表示上の丸め値が同じでも実際の平均差どおりに並ぶ | 境界値 | [features.md](features.md#機能一覧)、[screens.md](screens.md#その他の画面の差分) |
+| T-10-3 | 平均が等しければレビュー件数降順、さらに同件数なら書籍ID昇順となり、同点でも順位を共有せず連番にする | 境界値 | [features.md](features.md#機能一覧) |
+| T-10-4 | 対象0・1・10・11冊で上限・連番と所定の0件表示を確認する | 境界値 | [screens.md](screens.md#その他の画面の差分) |
+| T-10-5 | 順位・画像・タイトル・著者・平均・レビュー件数と詳細リンクを表示し、星隣は小数2桁、バッジは1桁、画像なしは「No Image」とする | 正常系 | [screens.md](screens.md#その他の画面の差分) |
+| T-10-6 | レビュー投稿・評価更新・レビュー削除・書籍削除後の再表示で集計と順位を更新し、最後のレビューがなくなった書籍を除外する | 正常系 | [features.md](features.md#機能一覧)、[data.md](data.md#crud表)、[behavior.md](behavior.md#書籍データの状態遷移) |
+
+---
+
+## 11. 公開書籍APIを利用できる
+
+対応する受け入れ条件: [単位11](acceptance.md#11-公開書籍apiを利用できる)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-11-1 | 基本5経路のパス・メソッドが定義に一致し、ゲスト・Web会員とも認証／トークン／Web本人PolicyなしでGET・POST・PUT・DELETEを利用できる | 正常系 | [permissions-api.md](permissions-api.md#共通契約経路)、[permissions-api.md](permissions-api.md#権限マトリクス) |
+| T-11-2 | 一覧・詳細・更新は200、登録は201、削除は204で、削除の本文は空。認証・所有者制限由来の401・403を加えない | 正常系 | [permissions-api.md](permissions-api.md#共通契約経路)、[permissions-api.md](permissions-api.md#エラーの返し方) |
+| T-11-3 | API Resourceを用い、成功本文はdata、一覧はlinks・meta付きとし、APIエラーでフォームへリダイレクトしない | 正常系 | [permissions-api.md](permissions-api.md#共通契約経路) |
+| T-11-4 | 一覧に全ジャンル・平均評価・レビュー件数を含め、未評価はnull・0件とし、登録日時降順に取得する | 正常系 | [features.md](features.md#機能一覧)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-11-5 | keyword単独、genre_id単独、併用、条件なしを扱い、タイトルOR著者の部分一致を括ってジャンルとANDにする | 正常系 | [permissions-api.md](permissions-api.md#入力定義) |
+| T-11-6 | keyword255／256文字、pageの0／1・負数・非整数、per_pageの0／1／100／101・非整数を検証し、per_page省略時は20とする | 境界値 | [permissions-api.md](permissions-api.md#入力定義)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-11-7 | 存在しない検索genre_idと不正なクエリ入力は422、検索結果0件は200＋空配列とする | 異常系 | [permissions-api.md](permissions-api.md#入力定義)、[permissions-api.md](permissions-api.md#エラーの返し方) |
+| T-11-8 | 詳細に対象書籍・全ジャンルとレビューの投稿者名・評価・コメント・投稿日時を含め、要件外のメール・パスワード等の個人情報を返さない | 正常系 | [features.md](features.md#機能一覧)、[permissions-api.md](permissions-api.md#出力定義json例)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-11-9 | POST・PUTの双方で実在user_idを必須とし、未指定・存在しないIDを422にする | 異常系 | [permissions-api.md](permissions-api.md#入力定義)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-11-10 | POST・PUTの必須項目とWeb同等の上限・ISBN形式・一意性・有効日付／未来日・HTTP(S) URLを確認し、PUTでも必須項目を省略できない | 異常系 | [permissions-api.md](permissions-api.md#入力定義)、[screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-11-11 | タイトル・著者255／256、説明5,000／5,001、画像URL255／256文字、ISBN12／13／14桁、ジャンル0／1／複数個の境界をPOST・PUTで確認する（T-6-7〜14の確定条件を適用） | 境界値 | [permissions-api.md](permissions-api.md#入力定義)、[screens.md](screens.md#入力チェックとエラーメッセージ) |
+| T-11-12 | 更新時のISBNは自身を除外して重複判定し、ISBNを数値化・自動変換・チェックディジット検証しない | 正常系 | [permissions-api.md](permissions-api.md#入力定義) |
+| T-11-13 | ジャンルの存在・重複を検証し、POSTで複数紐付け、PUTで集合を置換する | 異常系 | [permissions-api.md](permissions-api.md#入力定義) |
+| T-11-14 | 入力不正は保存せず422＋message・項目別errorsの日本語を返し、タイトル必須・ISBN桁数・重複の確定文言を維持する | 異常系 | [permissions-api.md](permissions-api.md#エラーの返し方)、[behavior.md](behavior.md#確定している結果) |
+| T-11-15 | 対象なし・削除済みの詳細・更新・削除は404＋messageを返し、検索／入力の参照ID不正422と区別する | 異常系 | [permissions-api.md](permissions-api.md#エラーの返し方)、[behavior.md](behavior.md#確定している結果) |
+| T-11-16 | API削除でもレビュー・そのいいね・お気に入り・book_genreを物理削除してジャンル本体を残し、再削除は404となる | 正常系 | [permissions-api.md](permissions-api.md#出力定義json例)、[data.md](data.md#外部キーと親削除時の動作) |
+| T-11-17 | （※仕様保留中）Q-18：PUTの登録者変更の可否と、結果としてのWeb編集・削除権限を回答後に確認する（PUTのuser_id必須は確定） | 正常系 | [questions.md](questions.md#q-18更新apiによる登録者変更の可否) |
+| T-11-18 | （※仕様保留中）Q-22：入出力のキー・型・配列要素エラーキー、要求ヘッダー、出力項目の配置を回答後に照合する | 正常系 | [questions.md](questions.md#q-22公開apiの入出力表現)、[permissions-api.md](permissions-api.md#公開api) |
+| T-11-19 | （※仕様保留中）Q-22：任意2項目の省略・null・空文字についてPOSTとPUTの保存結果・出力・DBのNULL定義の整合を確認する | 境界値 | [questions.md](questions.md#q-22公開apiの入出力表現)、[data.md](data.md#埋まらなかった箇所) |
+| T-11-20 | （※仕様保留中）Q-22：日付・日時・タイムゾーン・精度と平均の丸め／数値表現、詳細レビューの全件返却・順序・同日時順を回答後に照合する | 正常系 | [questions.md](questions.md#q-22公開apiの入出力表現)、[permissions-api.md](permissions-api.md#出力定義json例) |
+| T-11-21 | （※仕様保留中）Q-22：keywordの前後空白・空文字・英字大小・全半角・%／_の比較方法を回答後に確認する | 境界値 | [questions.md](questions.md#q-22公開apiの入出力表現) |
+| T-11-22 | （※仕様保留中）Q-22：page省略時、書籍の同日時順、検索条件付きリンク、0件・最終ページ超過時の本文とlinks・metaを回答後に確認する | 境界値 | [questions.md](questions.md#q-22公開apiの入出力表現) |
+| T-11-23 | （※仕様保留中）Q-19・22：最上位message・404・未指定項目別エラーと検索／ID／配列形式エラーの文言・キーを回答後に確認する | 異常系 | [questions.md](questions.md#q-19画面のエラー文言表示先)、[questions.md](questions.md#q-22公開apiの入出力表現) |
+| T-11-24 | （※仕様保留中）Q-23：対象なしと入力不正の優先順位、不正JSON・非対応メソッド・障害・保存競合時の応答と保存結果を回答後に確認する | 異常系 | [questions.md](questions.md#q-23保存失敗同時操作障害時の扱い)、[behavior.md](behavior.md#未確定の保存競合障害応答) |
+
+---
+
+## 12. 基本要件を通して確認する（仕上げ）
+
+対応する受け入れ条件: [単位12](acceptance.md#12-基本要件を通して確認する仕上げ)。
+
+| ID | 何を確かめるか | 区分 | 元になった設計書 |
+|---|---|---|---|
+| T-12-1 | F-01〜28とSC-01〜13・AP01〜05の実装／テスト対応を照合し、各単位の正常・異常・境界観点の漏れを確認する | 正常系 | [features.md](features.md#機能一覧)、[screens.md](screens.md#画面一覧)、[permissions-api.md](permissions-api.md#公開api) |
+| T-12-2 | モデル・画面アクセス・CRUD・レビュー・ジャンル・お気に入り・いいね・ランキング・認証・API・初期データの全テスト通過と、カバレッジ60%超の目標への到達を実行結果で確認する | 正常系 | [features.md](features.md#機能一覧)、[questions.md](questions.md#回答済み決定済みの要約) |
+| T-12-3 | 会員登録→ジャンル→書籍→レビュー→いいね／お気に入り→再表示を通し、本人・別利用者・ゲストの表示とサーバー認可を一致させる | 正常系 | [screens.md](screens.md#画面遷移図)、[permissions-api.md](permissions-api.md#権限マトリクス) |
+| T-12-4 | Web作成データをAPIで参照・更新・削除し、API作成データをWebで参照して、経路をまたいでも入力条件・関連・削除範囲が一致する（登録者変更はQ-18（※仕様保留中）の決定後） | 正常系 | [data.md](data.md#crud表)、[behavior.md](behavior.md#書籍データの状態遷移)、[permissions-api.md](permissions-api.md#公開api) |
+| T-12-5 | レビューの投稿・更新・削除と書籍削除後、一覧平均・レビュー件数・いいね数・お気に入り・ジャンル書籍数・ランキングが保存結果と整合する | 正常系 | [data.md](data.md#crud表)、[screens.md](screens.md#画面項目定義)、[features.md](features.md#機能一覧) |
+| T-12-6 | 未認証の保護経路、他人の直接操作、対象なし・削除済み、入力不正を通してログイン誘導・403・404・保存なしを維持する | 異常系 | [behavior.md](behavior.md#確定している結果)、[permissions-api.md](permissions-api.md#権限マトリクス) |
+| T-12-7 | PC・モバイルの導線、キャンセル・削除中止、既存Bladeの文言・表示・フォームを維持し、開発中の仮経路・仮データ・未実装応答を完成機能に残さない | 正常系 | [README.md](README.md#共通方針)、[screens.md](screens.md#画面遷移図)、[permissions-api.md](permissions-api.md#webルーティング一覧) |
+| T-12-8 | （※仕様保留中）Q-23：CSRF失効・セッション失効、不正JSON・非対応メソッド・想定外障害の画面／JSON・再入力方針を回答後に確認する | 異常系 | [questions.md](questions.md#q-23保存失敗同時操作障害時の扱い)、[behavior.md](behavior.md#未確定の保存競合障害応答) |
+| T-12-9 | （※仕様保留中）Q-23：決定した障害応答とログの保存先・期間・記録内容に従い、SQL・スタックトレース・パスワード・トークン等の扱いを確認する。全DB例外を一律422に変換しない | 異常系 | [questions.md](questions.md#q-23保存失敗同時操作障害時の扱い)、[behavior.md](behavior.md#例外方針) |
+| T-12-10 | 保留項目の回答・開発側決定が参照元の設計書と本書へ反映され、未回答の想定案を実装完了・確認済みとして扱っていない | 正常系 | [README.md](README.md#共通方針)、[questions.md](questions.md#未確定事項の確認先一覧) |
+| T-12-11 | Web検索・ISBN外部連携・CSV・読書計画／通知・Sanctum／API所有者認可・管理者・追加認証フロー等を基本要件の必須検証へ混在させない | 正常系 | [features.md](features.md#今回作らないもの) |
