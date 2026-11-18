@@ -1,0 +1,591 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1368" height="1404" viewBox="0 0 1368 1404" role="img" aria-labelledby="diagram-title diagram-desc" xml:lang="ja">
+  <title id="diagram-title">書籍レビューのER図</title>
+  <desc id="diagram-desc">シート12「テーブル仕様書(1)」に基づく7テーブル、44カラム、9本の外部キー。すべての外部キーは必須で、親1件に対して子は0件以上。テーブル内に参照先と削除時の動作を記載。複合UNIQUEは favorites、book_genre、review_likes の3件。</desc>
+  <style>
+    text { font-family: Inter, -apple-system, system-ui, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  </style>
+  <rect x="0" y="0" width="1368" height="1404" fill="#eef3f8" />
+  <g fill="#14253b">
+    <text x="24" y="58" font-size="37" font-weight="750">書籍レビューのER図</text>
+    <text x="24" y="89" font-size="17" font-weight="400" fill="#405773">シート12  テーブル仕様書 (1)</text>
+    <text x="1344" y="88" font-size="16" font-weight="600" text-anchor="end" fill="#405773">7 テーブル  /  9 リレーション</text>
+    <path d="M24 103H1344" stroke="#bac9d9" stroke-width="1.15" />
+  </g>
+  <g id="foreign-keys">
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="books.user_id" data-references="users.id" data-on-delete="CASCADE">
+      <title>books.user_id → users.id (ON DELETE CASCADE)</title>
+      <polyline points="684,446 684,534" />
+      <g transform="translate(684 446) rotate(90)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(684 534) rotate(270)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="reviews.user_id" data-references="users.id" data-on-delete="CASCADE">
+      <title>reviews.user_id → users.id (ON DELETE CASCADE)</title>
+      <polyline points="884,344 914,344 914,656.5 944,656.5" />
+      <g transform="translate(884 344) rotate(0)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(944 656.5) rotate(180)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="reviews.book_id" data-references="books.id" data-on-delete="CASCADE">
+      <title>reviews.book_id → books.id (ON DELETE CASCADE)</title>
+      <polyline points="884,687.5 944,687.5" />
+      <g transform="translate(884 687.5) rotate(0)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(944 687.5) rotate(180)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="favorites.user_id" data-references="users.id" data-on-delete="CASCADE">
+      <title>favorites.user_id → users.id (ON DELETE CASCADE)</title>
+      <polyline points="484,344 454,344 454,656.5 424,656.5" />
+      <g transform="translate(484 344) rotate(180)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(424 656.5) rotate(0)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="favorites.book_id" data-references="books.id" data-on-delete="CASCADE">
+      <title>favorites.book_id → books.id (ON DELETE CASCADE)</title>
+      <polyline points="484,687.5 424,687.5" />
+      <g transform="translate(484 687.5) rotate(180)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(424 687.5) rotate(0)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="book_genre.book_id" data-references="books.id" data-on-delete="CASCADE">
+      <title>book_genre.book_id → books.id (ON DELETE CASCADE)</title>
+      <polyline points="684,959 684,1046" />
+      <g transform="translate(684 959) rotate(90)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(684 1046) rotate(270)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#9b4a1a" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="book_genre.genre_id" data-references="genres.id" data-on-delete="RESTRICT">
+      <title>book_genre.genre_id → genres.id (ON DELETE RESTRICT)</title>
+      <polyline points="424,1199.5 484,1199.5" stroke-dasharray="6 5" />
+      <g transform="translate(424 1199.5) rotate(0)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(484 1199.5) rotate(180)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="review_likes.user_id" data-references="users.id" data-on-delete="CASCADE">
+      <title>review_likes.user_id → users.id (ON DELETE CASCADE)</title>
+      <polyline points="884,244.5 944,244.5" />
+      <g transform="translate(884 244.5) rotate(0)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(944 244.5) rotate(180)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round" data-fk="review_likes.review_id" data-references="reviews.id" data-on-delete="CASCADE">
+      <title>review_likes.review_id → reviews.id (ON DELETE CASCADE)</title>
+      <polyline points="1144,534 1144,450" />
+      <g transform="translate(1144 534) rotate(270)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(1144 450) rotate(90)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+  </g>
+  <g transform="translate(24 122)" fill="#14253b">
+    <rect x="0" y="0" width="400" height="324" rx="12" fill="#ffffff" stroke="#b5c4d5" stroke-width="1.2" />
+    <text x="19" y="34" font-size="22" font-weight="700">図の見方</text>
+    <text x="19" y="66" font-size="15.5" font-weight="700" class="mono">PK</text>
+    <text x="80" y="66" font-size="16" font-weight="400">主キー（全テーブルで自動採番）</text>
+    <text x="19" y="93" font-size="15.5" font-weight="700" class="mono">FK</text>
+    <text x="80" y="93" font-size="16" font-weight="400">外部キー</text>
+    <text x="19" y="120" font-size="15.5" font-weight="700" class="mono">UQ</text>
+    <text x="80" y="120" font-size="16" font-weight="400">UNIQUE（単一カラム）</text>
+    <text x="19" y="147" font-size="15.5" font-weight="700" class="mono">NULL</text>
+    <text x="80" y="147" font-size="16" font-weight="400">YES = NULL可、NO = NOT NULL</text>
+    <path d="M19 162H381" stroke="#d9e1eb" />
+    <text x="20" y="189" font-size="17" font-weight="700">親  1</text>
+    <text x="378" y="189" font-size="17" font-weight="700" text-anchor="end">子  0..N</text>
+    <rect x="19" y="199" width="360" height="24" rx="4" fill="#eef3f8" />
+    <g stroke="#425771" fill="none" stroke-width="2.45" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="27,211 371,211" />
+      <g transform="translate(27 211) rotate(0)">
+        <path d="M0 0H19 M8 -7V7 M16 -7V7" />
+      </g>
+      <g transform="translate(371 211) rotate(180)">
+        <path d="M0 0H19 M0 -7L15 0L0 7" />
+        <circle cx="24" cy="0" r="5" fill="#eef3f8" />
+      </g>
+    </g>
+    <text x="19" y="254" font-size="16" font-weight="700">親の削除時の動作（ON DELETE）</text>
+    <path d="M19 277H53" stroke="#425771" stroke-width="2.45" stroke-linecap="round" />
+    <text x="64" y="282" font-size="15" font-weight="700" class="mono">CASCADE</text>
+    <text x="147" y="282" font-size="15.5" font-weight="400">子も削除</text>
+    <path d="M19 303H53" stroke="#9b4a1a" stroke-width="2.45" stroke-linecap="round" stroke-dasharray="6 5" />
+    <text x="64" y="308" font-size="15" font-weight="700" class="mono">RESTRICT</text>
+    <text x="147" y="308" font-size="15.5" font-weight="400">子がある場合は親の削除を拒否</text>
+  </g>
+  <g id="table-users" data-table="users" transform="translate(484 122)" fill="#000000">
+    <title>users テーブル</title>
+    <rect x="0" y="0" width="400" height="324" rx="12" fill="#ffffff" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#dceaf8" />
+    <rect x="0" y="47" width="400" height="29" fill="#eef5fc" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">users</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#eef5fc" stroke="#9db2c8" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="name">
+      <rect x="0" y="107" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 107H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">name</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="email">
+      <path d="M0 138H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">email</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <rect x="322" y="143" width="30" height="21" rx="4" fill="#eef5fc" stroke="#9db2c8" stroke-width="0.75" />
+      <text x="337" y="158.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">UQ</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="email_verified_at">
+      <rect x="0" y="169" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 169H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">email_verified_at</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="password">
+      <path d="M0 200H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="221" font-size="16.8" font-weight="400" class="mono" data-field="name">password</text>
+      <text x="195" y="221" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <text x="374" y="221" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="remember_token">
+      <rect x="0" y="231" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 231H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="252" font-size="16.8" font-weight="400" class="mono" data-field="name">remember_token</text>
+      <text x="195" y="252" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(100)</text>
+      <text x="374" y="252" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="created_at">
+      <path d="M0 262H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="283" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="283" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="283" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <path d="M0 293H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="314" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="314" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="314" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <rect x="0" y="0" width="400" height="324" rx="12" fill="none" stroke="#9db2c8" stroke-width="1.4" />
+  </g>
+  <g id="table-genres" data-table="genres" transform="translate(24 1046)" fill="#ffffff">
+    <title>genres テーブル</title>
+    <rect x="0" y="0" width="400" height="200" rx="12" fill="#19332e" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#29433e" />
+    <rect x="0" y="47" width="400" height="29" fill="#25423c" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">genres</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#25423c" stroke="#56776d" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="name">
+      <rect x="0" y="107" width="400" height="31" fill="#203b35" />
+      <path d="M0 107H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">name</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <rect x="322" y="112" width="30" height="21" rx="4" fill="#25423c" stroke="#56776d" stroke-width="0.75" />
+      <text x="337" y="127.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">UQ</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="created_at">
+      <path d="M0 138H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <path d="M0 169H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <rect x="0" y="0" width="400" height="200" rx="12" fill="none" stroke="#56776d" stroke-width="1.4" />
+  </g>
+  <g id="table-books" data-table="books" transform="translate(484 534)" fill="#000000">
+    <title>books テーブル</title>
+    <rect x="0" y="0" width="400" height="425" rx="12" fill="#ffffff" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#dceaf8" />
+    <rect x="0" y="47" width="400" height="29" fill="#eef5fc" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">books</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#eef5fc" stroke="#9db2c8" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="user_id">
+      <rect x="0" y="107" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 107H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">user_id</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="112" width="30" height="21" rx="4" fill="#eef5fc" stroke="#9db2c8" stroke-width="0.75" />
+      <text x="337" y="127.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="title">
+      <path d="M0 138H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">title</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="author">
+      <rect x="0" y="169" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 169H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">author</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="isbn">
+      <path d="M0 200H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="221" font-size="16.8" font-weight="400" class="mono" data-field="name">isbn</text>
+      <text x="195" y="221" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(13)</text>
+      <rect x="322" y="205" width="30" height="21" rx="4" fill="#eef5fc" stroke="#9db2c8" stroke-width="0.75" />
+      <text x="337" y="220.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">UQ</text>
+      <text x="374" y="221" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="published_date">
+      <rect x="0" y="231" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 231H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="252" font-size="16.8" font-weight="400" class="mono" data-field="name">published_date</text>
+      <text x="195" y="252" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">DATE</text>
+      <text x="374" y="252" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="image_url">
+      <path d="M0 262H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="283" font-size="16.8" font-weight="400" class="mono" data-field="name">image_url</text>
+      <text x="195" y="283" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">VARCHAR(255)</text>
+      <text x="374" y="283" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="description">
+      <rect x="0" y="293" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 293H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="314" font-size="16.8" font-weight="400" class="mono" data-field="name">description</text>
+      <text x="195" y="314" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TEXT</text>
+      <text x="374" y="314" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="created_at">
+      <path d="M0 324H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="345" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="345" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="345" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <rect x="0" y="355" width="400" height="31" fill="#f5f9fd" />
+      <path d="M0 355H400" stroke="#9db2c8" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="376" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="376" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="376" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <path d="M0 386H400" stroke="#9db2c8" stroke-width="1.1" />
+    <text x="14" y="410" font-size="16" font-weight="400" class="mono" data-reference="user_id">user_id → users.id</text>
+    <text x="385" y="410" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <rect x="0" y="0" width="400" height="425" rx="12" fill="none" stroke="#9db2c8" stroke-width="1.4" />
+  </g>
+  <g id="table-reviews" data-table="reviews" transform="translate(944 534)" fill="#ffffff">
+    <title>reviews テーブル</title>
+    <rect x="0" y="0" width="400" height="361" rx="12" fill="#1b2d47" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#263954" />
+    <rect x="0" y="47" width="400" height="29" fill="#263d5b" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">reviews</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#263d5b" stroke="#5b7290" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="user_id">
+      <rect x="0" y="107" width="400" height="31" fill="#223550" />
+      <path d="M0 107H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">user_id</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="112" width="30" height="21" rx="4" fill="#263d5b" stroke="#5b7290" stroke-width="0.75" />
+      <text x="337" y="127.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="book_id">
+      <path d="M0 138H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">book_id</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="143" width="30" height="21" rx="4" fill="#263d5b" stroke="#5b7290" stroke-width="0.75" />
+      <text x="337" y="158.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="rating">
+      <rect x="0" y="169" width="400" height="31" fill="#223550" />
+      <path d="M0 169H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">rating</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">INT</text>
+      <text x="230" y="187" font-size="15" font-weight="700">*</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="comment">
+      <path d="M0 200H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="221" font-size="16.8" font-weight="400" class="mono" data-field="name">comment</text>
+      <text x="195" y="221" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TEXT</text>
+      <text x="237" y="218" font-size="15" font-weight="700">*</text>
+      <text x="374" y="221" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="created_at">
+      <rect x="0" y="231" width="400" height="31" fill="#223550" />
+      <path d="M0 231H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="252" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="252" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="252" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <path d="M0 262H400" stroke="#5b7290" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="283" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="283" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="283" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <path d="M0 293H400" stroke="#5b7290" stroke-width="1.1" />
+    <text x="14" y="317" font-size="16" font-weight="400" class="mono" data-reference="user_id">user_id → users.id</text>
+    <text x="385" y="317" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <text x="14" y="346" font-size="16" font-weight="400" class="mono" data-reference="book_id">book_id → books.id</text>
+    <text x="385" y="346" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <rect x="0" y="0" width="400" height="361" rx="12" fill="none" stroke="#5b7290" stroke-width="1.4" />
+  </g>
+  <g id="table-favorites" data-table="favorites" transform="translate(24 534)" fill="#000000">
+    <title>favorites テーブル</title>
+    <rect x="0" y="0" width="400" height="328" rx="12" fill="#ffffff" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#ddece7" />
+    <rect x="0" y="47" width="400" height="29" fill="#edf6f3" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">favorites</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#edf6f3" stroke="#9cb8ae" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="user_id">
+      <rect x="0" y="107" width="400" height="31" fill="#f4f9f7" />
+      <path d="M0 107H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">user_id</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="112" width="30" height="21" rx="4" fill="#edf6f3" stroke="#9cb8ae" stroke-width="0.75" />
+      <text x="337" y="127.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="book_id">
+      <path d="M0 138H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">book_id</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="143" width="30" height="21" rx="4" fill="#edf6f3" stroke="#9cb8ae" stroke-width="0.75" />
+      <text x="337" y="158.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="created_at">
+      <rect x="0" y="169" width="400" height="31" fill="#f4f9f7" />
+      <path d="M0 169H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <path d="M0 200H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="221" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="221" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="221" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <path d="M0 231H400" stroke="#9cb8ae" stroke-width="1.1" />
+    <text x="14" y="255" font-size="16" font-weight="400" class="mono" data-reference="user_id">user_id → users.id</text>
+    <text x="385" y="255" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <text x="14" y="284" font-size="16" font-weight="400" class="mono" data-reference="book_id">book_id → books.id</text>
+    <text x="385" y="284" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <text x="14" y="313" font-size="16" font-weight="400" class="mono" data-constraint="unique">UNIQUE (user_id, book_id)</text>
+    <rect x="0" y="0" width="400" height="328" rx="12" fill="none" stroke="#9cb8ae" stroke-width="1.4" />
+  </g>
+  <g id="table-book_genre" data-table="book_genre" transform="translate(484 1046)" fill="#ffffff">
+    <title>book_genre テーブル</title>
+    <rect x="0" y="0" width="400" height="328" rx="12" fill="#19332e" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#29433e" />
+    <rect x="0" y="47" width="400" height="29" fill="#25423c" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">book_genre</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#25423c" stroke="#56776d" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="book_id">
+      <rect x="0" y="107" width="400" height="31" fill="#203b35" />
+      <path d="M0 107H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">book_id</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="112" width="30" height="21" rx="4" fill="#25423c" stroke="#56776d" stroke-width="0.75" />
+      <text x="337" y="127.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="genre_id">
+      <path d="M0 138H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">genre_id</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="143" width="30" height="21" rx="4" fill="#25423c" stroke="#56776d" stroke-width="0.75" />
+      <text x="337" y="158.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="created_at">
+      <rect x="0" y="169" width="400" height="31" fill="#203b35" />
+      <path d="M0 169H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <path d="M0 200H400" stroke="#56776d" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="221" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="221" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="221" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <path d="M0 231H400" stroke="#56776d" stroke-width="1.1" />
+    <text x="14" y="255" font-size="16" font-weight="400" class="mono" data-reference="book_id">book_id → books.id</text>
+    <text x="385" y="255" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <text x="14" y="284" font-size="16" font-weight="400" class="mono" data-reference="genre_id">genre_id → genres.id</text>
+    <text x="385" y="284" font-size="13.5" font-weight="700" class="mono" text-anchor="end">RESTRICT</text>
+    <text x="14" y="313" font-size="16" font-weight="400" class="mono" data-constraint="unique">UNIQUE (book_id, genre_id)</text>
+    <rect x="0" y="0" width="400" height="328" rx="12" fill="none" stroke="#56776d" stroke-width="1.4" />
+  </g>
+  <g id="table-review_likes" data-table="review_likes" transform="translate(944 122)" fill="#000000">
+    <title>review_likes テーブル</title>
+    <rect x="0" y="0" width="400" height="328" rx="12" fill="#ffffff" />
+    <path d="M0 12Q0 0 12 0H388Q400 0 400 12V47H0Z" fill="#ddece7" />
+    <rect x="0" y="47" width="400" height="29" fill="#edf6f3" />
+    <text x="14" y="31" font-size="26" font-weight="700" class="mono">review_likes</text>
+    <text x="14" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">COLUMN</text>
+    <text x="195" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="start">TYPE</text>
+    <text x="337" y="67" font-size="13.5" font-weight="700" letter-spacing=".5" text-anchor="middle">KEY</text>
+    <text x="374" y="67" font-size="13.5" font-weight="700" letter-spacing=".2" text-anchor="middle">NULL</text>
+    <g data-column="id">
+      <path d="M0 76H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="97" font-size="16.8" font-weight="400" class="mono" data-field="name">id</text>
+      <text x="195" y="97" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="81" width="30" height="21" rx="4" fill="#edf6f3" stroke="#9cb8ae" stroke-width="0.75" />
+      <text x="337" y="96.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">PK</text>
+      <text x="374" y="97" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="user_id">
+      <rect x="0" y="107" width="400" height="31" fill="#f4f9f7" />
+      <path d="M0 107H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="128" font-size="16.8" font-weight="400" class="mono" data-field="name">user_id</text>
+      <text x="195" y="128" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="112" width="30" height="21" rx="4" fill="#edf6f3" stroke="#9cb8ae" stroke-width="0.75" />
+      <text x="337" y="127.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="128" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="review_id">
+      <path d="M0 138H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="159" font-size="16.8" font-weight="400" class="mono" data-field="name">review_id</text>
+      <text x="195" y="159" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">BIGINT UNSIGNED</text>
+      <rect x="322" y="143" width="30" height="21" rx="4" fill="#edf6f3" stroke="#9cb8ae" stroke-width="0.75" />
+      <text x="337" y="158.5" font-size="13" font-weight="700" class="mono" data-field="key" text-anchor="middle">FK</text>
+      <text x="374" y="159" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">NO</text>
+    </g>
+    <g data-column="created_at">
+      <rect x="0" y="169" width="400" height="31" fill="#f4f9f7" />
+      <path d="M0 169H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="190" font-size="16.8" font-weight="400" class="mono" data-field="name">created_at</text>
+      <text x="195" y="190" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="190" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <g data-column="updated_at">
+      <path d="M0 200H400" stroke="#9cb8ae" stroke-width="0.65" opacity="0.62" />
+      <text x="14" y="221" font-size="16.8" font-weight="400" class="mono" data-field="name">updated_at</text>
+      <text x="195" y="221" font-size="14.8" font-weight="400" letter-spacing="-.28" data-field="type">TIMESTAMP</text>
+      <text x="374" y="221" font-size="13.5" font-weight="400" class="mono" data-field="nullable" text-anchor="middle">YES</text>
+    </g>
+    <path d="M0 231H400" stroke="#9cb8ae" stroke-width="1.1" />
+    <text x="14" y="255" font-size="16" font-weight="400" class="mono" data-reference="user_id">user_id → users.id</text>
+    <text x="385" y="255" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <text x="14" y="284" font-size="16" font-weight="400" class="mono" data-reference="review_id">review_id → reviews.id</text>
+    <text x="385" y="284" font-size="13.5" font-weight="700" class="mono" text-anchor="end">CASCADE</text>
+    <text x="14" y="313" font-size="16" font-weight="400" class="mono" data-constraint="unique">UNIQUE (user_id, review_id)</text>
+    <rect x="0" y="0" width="400" height="328" rx="12" fill="none" stroke="#9cb8ae" stroke-width="1.4" />
+  </g>
+  <g transform="translate(944 1046)" fill="#14253b">
+    <rect x="0" y="0" width="400" height="209" rx="12" fill="#ffffff" stroke="#b5c4d5" stroke-width="1.2" />
+    <text x="19" y="34" font-size="20" font-weight="700">*  reviews の型について</text>
+    <text x="19" y="68" font-size="16" font-weight="400">仕様書の型欄を採用</text>
+    <text x="19" y="95" font-size="16" font-weight="400" class="mono">rating = INT  /  comment = TEXT</text>
+    <text x="19" y="128" font-size="16" font-weight="400">両列の補足欄に unsignedTinyInteger()</text>
+    <text x="19" y="152" font-size="16" font-weight="400">の記載があります。</text>
+    <text x="19" y="185" font-size="16" font-weight="400">rating の 1〜5 は入力検証の範囲です。</text>
+  </g>
+</svg>
