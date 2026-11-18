@@ -44,6 +44,8 @@ Bookshelfは、書籍の登録・レビュー・評価・お気に入り管理�
 
 - 実装方針は設計書に従う。文字数・件数・文言・判定順序などの具体的な契約は上の表から確認する。
 - 書式は `.editorconfig` に従い、変更したPHPはPintで整形する。Bladeや無関係なファイルを巻き込まない。
+- **日本語コメントの義務化**：新規作成するすべてのPHPファイル（Migration・Model・Controller・FormRequest・Resource・Seeder・Factory等）およびテストファイルは、ファイル冒頭のDocBlockに目的や役割を説明する日本語の一言コメントを必ず記載する。
+- 主要なクラス、カスタムメソッド、複雑なロジックやバリデーション定義にも、意図がひと目で伝わる簡潔な日本語コメントを適宜添える。宣言の説明はDocBlock、処理途中の意図はインラインコメントで示す。
 - 入力検証は `FormRequest` に分離し日本語エラーとする。
 - Webでは認証情報からユーザーを取得し、送信された `user_id` を信じない。本人制限はPolicyで適用する。公開APIにはWebの本人制限を持ち込まず、設計書の契約に従う。
 - Seederは責務別に分割する（User → Genre → Book → Review → Favorite → ReviewLike）。

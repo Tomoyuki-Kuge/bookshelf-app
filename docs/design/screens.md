@@ -4,7 +4,7 @@
 
 ## 前提・根拠
 
-共通方針は [README.md](README.md)、対象はF-01〜21の基本13画面。完成済みBladeを維持し、サーバー側で確定条件を満たす。Q-18・19・22〜25は未確定で、具体案・確認先は [questions.md](questions.md) に集約する。経路の詳細は [permissions-api.md](permissions-api.md#webルーティング一覧)、物理定義はdata.mdを参照する。
+共通方針は [README.md](README.md)、対象はF-01〜21の基本13画面。完成済みBladeを維持し、サーバー側で確定条件を満たす。Q-18・19・23・24とQ-22の未回答部分は未確定で、具体案・確認先は [questions.md](questions.md) に集約する。経路の詳細は [permissions-api.md](permissions-api.md#webルーティング一覧)、物理定義はdata.mdを参照する。
 
 ### 根拠と照合結果
 
@@ -102,7 +102,7 @@ flowchart TD
 |---|---|
 | タイトル／title・著者／author | テキスト。プレースホルダーは書籍タイトル・著者名の入力案内 |
 | ISBN-13／isbn | テキスト、例9784000000000。「13桁のISBNコードを入力してください」の補足 |
-| 出版日／published_date | 日付。既存値の受け渡し方法はQ-25で開発側検討 |
+| 出版日／published_date | 日付。Q-25に従いモデルからYYYY-MM-DD文字列で渡す |
 | 説明／description | テキストエリア。「書籍の説明を入力（任意）」 |
 | 画像URL／image_url | テキスト、例https://example.com/image.jpg。表紙画像URL・任意の補足。アップロード欄なし |
 | ジャンル／genres[] | 既存ジャンルの複数チェック。0件は「ジャンルが登録されていません。先にジャンルを登録してください。」、案内内リンクなし |

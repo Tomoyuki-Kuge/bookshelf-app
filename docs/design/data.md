@@ -1,10 +1,10 @@
 # データ設計
 
-作成日: 2026-11-14 / S12反映日: 2026-11-15 / 最終整理日: 2026-11-18
+作成日: 2026-11-14 / S12反映日: 2026-11-15 / 最終整理日: 2026-11-19
 
 ## 範囲・根拠
 
-基本7業務テーブル・44列とCRUDを扱う。共通方針は [README.md](README.md)、機能はfeatures.md、入力条件はscreens.md、回答状態はquestions.mdを参照。物理定義はS11・最新S12、確定回答を未反映資料より優先する。未指定の物理条件は補わず、実行可能DDLの完成を示さない。
+基本7業務テーブル・44列とCRUDを扱う。共通方針は [README.md](README.md)、機能はfeatures.md、入力条件はscreens.md、回答状態はquestions.mdを参照。物理定義はS11・最新S12、確定回答を未反映資料より優先する。2026-11-19のIssue #1実装指示により、以下の物理条件を確定した。設計書は実装・検証完了を示さない。
 
 ### 参照資料からの反映・修正
 
@@ -14,7 +14,7 @@
 | T4の表名 | 2026-11-18のユーザー指示を優先し、Laravelの中間テーブル命名規約に合わせて `book_genre` へ変更。参照S12の旧名 `books_genres` は控えのまま保持し、列・キー・削除制約は変更しない |
 | 書籍 | 単一genre_idなし、user_id・published_date・image_url、ISBN varchar(13)・画像URL varchar(255)・updated_atあり（S12 行24〜32、Q-10〜11） |
 | レビュー・いいね | commentはtext・NOT NULL、review_likesとUNIQUE(user_id, review_id)（S12 行38・56〜61、Q-04・11） |
-| ジャンル名UNIQUE | S12 行19は記載不足。S11 DR02・Q-04を優先してUNIQUE(name)を採用し、一意性の再確認は不要。照合順序・実現方法は未確定 |
+| ジャンル名UNIQUE | S12 行19は記載不足。S11 DR02・Q-04を優先してUNIQUE(name)を採用。全半角を区別する列照合順序と小文字化した値の式UNIQUE索引を併用する（下記） |
 | 削除制約 | 書籍側CASCADE（Q-20）、ジャンル側RESTRICTは最新S12 行52に反映済み（Q-21）。ユーザー参照CASCADEもS12を採用するが、ユーザー削除機能は追加しない |
 
 ## テーブル一覧
@@ -30,11 +30,11 @@ T番号は本書内の対応番号。
 | T5 | `reviews` | 書籍へのレビュー | S11 DR04、S12 行33〜40、Q-04・08 |
 | T6 | `favorites` | ユーザーのお気に入り書籍 | S11 DR05、S12 行42〜47 |
 | T7 | `review_likes` | ユーザーによるレビューへのいいね | S11 DR06、S12 行56〜61、Q-11 |
-| 補助 | 詳細未確定 | パスワードリセット等の認証補助・標準管理データ | S11 DR08、S12 行63、Q-17 |
+| 補助 | 既存の標準テーブルを保持 | password_reset_tokens・sessions・cache／jobs系 | Q-17、2026-11-19実装指示 |
 
 ## ER図
 
-関係とキーだけを示す。全列・型・NULL可否は次節。書籍のジャンル1件以上は登録・編集時の業務条件で、外部キーだけで最小件数を保証しない。
+関係とキーだけを示す。全列・型・NULL可否は次節。[詳細ER図](../erd.svg)も参照する。物理DBではジャンル未登録の書籍を許容する。書籍のジャンル1件以上は登録・編集時の業務条件で、後続IssueのFormRequest／Validationで保証し、外部キーでは最小件数を保証しない。
 
 ```mermaid
 erDiagram
@@ -42,7 +42,7 @@ erDiagram
     users ||--o{ reviews : 投稿
     users ||--o{ favorites : お気に入り
     users ||--o{ review_likes : いいね
-    books ||--|{ book_genre : ジャンル1件以上
+    books ||--o{ book_genre : 分類
     genres ||--o{ book_genre : 分類
     books ||--o{ reviews : レビュー
     books ||--o{ favorites : 登録対象
@@ -55,10 +55,11 @@ erDiagram
 
 ### 共通の読み方
 
-- 「NOT NULL」はS12の○を「○」、明示的なNULL許可を「可（NULL許可）」、空欄を「未記載」として転記する。空欄だけでNULL許可・禁止を確定しない。
-- 既定値、時刻の精度・タイムゾーン、文字コード・照合順序、追加索引、ON UPDATE動作は未指定。`timestamp` に現在時刻の自動設定を推測で付けない。
-- `id` は全7表とも `bigint unsigned` の主キー。S12 行7は `users.id` に `$table->id()` を明記している。その他のID採番方法は明記がないため、型・主キーの確定と区別する。
-- 日時列はS12に列挙されたものを反映する。`$table->timestamps()` の補足はあるが、SQLのNULL・既定値まで独自に展開しない。
+- S12で未記載だったNULL条件は2026-11-19のユーザー承認を反映する。全日時列とbooks.image_url・descriptionはNULL許容とし、users.remember_tokenも既存のNULL許容を維持する。その他の業務列はNOT NULLとする。
+- MySQL 8.4・InnoDB、文字コードutf8mb4、基本照合順序utf8mb4_unicode_ci。ジャンル名のみ下記の比較要件を満たす列照合順序を指定する。emailは既存の基本照合順序を維持する。
+- `id` は全7表とも `$table->id()` によるbigint unsigned・主キー・AUTO_INCREMENTとする。
+- 日時列はNULL許容・秒精度（`$table->timestamps(0)`、単独列は`timestamp(..., 0)`）・既定値NULL。アプリとMySQL接続セッションをUTC（`+00:00`）に統一し、モデルの保存形式を`Y-m-d H:i:s`に揃える。Eloquentが日時を管理し、DB側のCURRENT_TIMESTAMP既定値・ON UPDATE自動更新を付けない。業務列に独自の既定値は付けない。
+- ratingはintのまま、CHECK制約は追加しない。参照IDを更新する機能は追加せず、外部キーのON UPDATEはRESTRICT。索引はPK・UNIQUE・外部キーに必要なものとジャンル名の式UNIQUEに限定する。
 - 業務上の文字数・形式・必須条件はQ-04および画面設計に従う。SQL型の保存容量と入力上限は別に扱う。
 
 ### T1 `users`
@@ -73,8 +74,8 @@ erDiagram
 | `email_verified_at` | timestamp | 可（NULL許可） | S12の標準列。メール認証フローを追加する意味ではない |
 | `password` | varchar(255) | ○ | ハッシュ保存。入力必須・8文字以上・確認一致 |
 | `remember_token` | varchar(100) | 可（NULL許可） | S12の標準列。ログイン画面に記憶用の入力を追加しない |
-| `created_at` | timestamp | 未記載 | 作成日時 |
-| `updated_at` | timestamp | 未記載 | 更新日時 |
+| `created_at` | timestamp | 可（NULL許可） | 作成日時 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
 確認用パスワードは保存しない。二要素認証用3列はS12 行15により不要。標準列を保持することと、今回の画面・機能範囲を区別する。
 
@@ -90,10 +91,10 @@ erDiagram
 | `author` | varchar(255) | ○ | 著者。入力必須・255文字以内 |
 | `isbn` | varchar(13) | ○ | UNIQUE。入力はハイフンなし半角数字13桁。自身を除外して更新時の一意性検証。自動変換・チェックディジット検証なし |
 | `published_date` | date | ○ | 出版日。入力必須、未来日可 |
-| `image_url` | varchar(255) | 未記載 | 画像URL。任意・255文字以内・HTTP／HTTPS |
-| `description` | text | 未記載 | 説明。任意・5,000文字以内 |
-| `created_at` | timestamp | 未記載 | 登録日時。一覧・ジャンル内書籍の登録日時降順に使用 |
-| `updated_at` | timestamp | 未記載 | 更新日時。S12 行32で追加済み |
+| `image_url` | varchar(255) | 可（NULL許可） | 画像URL。任意・255文字以内・HTTP／HTTPS |
+| `description` | text | 可（NULL許可） | 説明。任意・5,000文字以内 |
+| `created_at` | timestamp | 可（NULL許可） | 登録日時。一覧・ジャンル内書籍の登録日時降順に使用 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時。S12 行32で追加済み |
 
 `genre_id` は置かない。最新S12では単一ジャンル列が削除され、`created_at`・`updated_at` の両方が列挙されている。平均評価・レビュー件数の保存用列は資料にないため追加しない。
 
@@ -105,10 +106,19 @@ erDiagram
 |---|---|---|---|
 | `id` | bigint unsigned | ○ | PK。一覧はID昇順 |
 | `name` | varchar(255) | ○ | Q-04の一意条件をUNIQUEとして反映。入力必須・255文字以内、更新時は自身除外。前後空白除去・全角半角を区別・英字大小を区別せず重複判定 |
-| `created_at` | timestamp | 未記載 | 作成日時 |
-| `updated_at` | timestamp | 未記載 | 更新日時 |
+| `created_at` | timestamp | 可（NULL許可） | 作成日時 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
-一意性の比較ルールを満たす照合順序・実装方法は未確定であり、開発側で検討する。S12 行19の記載不足によってUNIQUEを省略しない。全ユーザー共通で所有者列は設けない。書籍数の保存用列は追加しない。
+全ユーザー共通で所有者列は設けない。書籍数の保存用列は追加しない。nameはutf8mb4_binで全半角を区別し、UNIQUE(name)を保持する。英字大小の重複防止にはMySQL 8.4の式UNIQUE索引を追加する。名前の表示値は変更せず、明示的な生成列を追加しないため業務用44列を維持する。
+
+採用するLaravel 10の構文（Schema::create内と作成後）：
+
+```php
+$table->string('name', 255)->collation('utf8mb4_bin')->unique();
+DB::statement('CREATE UNIQUE INDEX genres_name_lower_unique ON genres ((LOWER(name) COLLATE utf8mb4_bin))');
+```
+
+式索引は内部的な隠し生成列を使うMySQLの機構である。[公式の関数索引仕様](https://dev.mysql.com/doc/refman/8.4/en/create-index.html)に従い、大小違いの拒否と全半角違いの保存を実DBで確認する。前後空白の除去と同じ比較式による事前検証は後続のジャンルFormRequestで実施する。
 
 ### T4 `book_genre`
 
@@ -119,8 +129,8 @@ erDiagram
 | `id` | bigint unsigned | ○ | PK |
 | `book_id` | bigint unsigned | ○ | FK→`books.id`、ON DELETE CASCADE |
 | `genre_id` | bigint unsigned | ○ | FK→`genres.id`、**ON DELETE RESTRICT（Q-21）** |
-| `created_at` | timestamp | 未記載 | 作成日時 |
-| `updated_at` | timestamp | 未記載 | 更新日時 |
+| `created_at` | timestamp | 可（NULL許可） | 作成日時 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
 `UNIQUE(book_id, genre_id)`。物理名はBook・Genreの単数モデル名をsnake_case・アルファベット順で結んだ `book_genre` とする。BookとGenreの `belongsToMany` ではテーブル名の省略が可能。ジャンル選択は既存IDを1つ以上、重複指定は拒否（Q-04）。
 
@@ -133,10 +143,10 @@ erDiagram
 | `id` | bigint unsigned | ○ | PK |
 | `user_id` | bigint unsigned | ○ | FK→`users.id`、ON DELETE CASCADE。投稿者 |
 | `book_id` | bigint unsigned | ○ | FK→`books.id`、ON DELETE CASCADE |
-| `rating` | int | ○ | 評価。入力必須・整数1〜5。DBのCHECK制約は未指定 |
+| `rating` | int | ○ | 評価。入力必須・整数1〜5。DBのCHECK制約は追加しない |
 | `comment` | text | ○ | 入力はQ-04により必須・1,000文字以内。S12 行38でもNOT NULLを明記 |
-| `created_at` | timestamp | 未記載 | 投稿日時。登録日時降順で全件表示 |
-| `updated_at` | timestamp | 未記載 | 更新日時 |
+| `created_at` | timestamp | 可（NULL許可） | 投稿日時。登録日時降順で全件表示 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
 `UNIQUE(user_id, book_id)` は設けない。同じユーザーが同じ書籍へ複数投稿できる。本人編集・削除の条件はアプリ側で適用する。
 
@@ -149,8 +159,8 @@ erDiagram
 | `id` | bigint unsigned | ○ | PK |
 | `user_id` | bigint unsigned | ○ | FK→`users.id`、ON DELETE CASCADE |
 | `book_id` | bigint unsigned | ○ | FK→`books.id`、ON DELETE CASCADE |
-| `created_at` | timestamp | 未記載 | お気に入り追加日時。自分の登録分をこの日時の降順で表示 |
-| `updated_at` | timestamp | 未記載 | 更新日時 |
+| `created_at` | timestamp | 可（NULL許可） | お気に入り追加日時。自分の登録分をこの日時の降順で表示 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
 `UNIQUE(user_id, book_id)`。利用者／書籍ごとの登録状態を追加・解除で切り替える。
 
@@ -163,16 +173,16 @@ erDiagram
 | `id` | bigint unsigned | ○ | PK |
 | `user_id` | bigint unsigned | ○ | FK→`users.id`、ON DELETE CASCADE |
 | `review_id` | bigint unsigned | ○ | FK→`reviews.id`、ON DELETE CASCADE |
-| `created_at` | timestamp | 未記載 | 作成日時 |
-| `updated_at` | timestamp | 未記載 | 更新日時 |
+| `created_at` | timestamp | 可（NULL許可） | 作成日時 |
+| `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
 `UNIQUE(user_id, review_id)`。最新S12の表名・組の一意制約はQ-11と一致する。自分のレビューにもいいねできる。
 
 ### 補助：標準の認証補助・管理データ
 
-S11 DR08はパスワードリセット・パーソナルアクセストークン・失敗ジョブを挙げ、S12 行63は `password_resets 等`・`id / token等`・型「各種」・Laravel標準マイグレーションという概略のみ。**具体的な全テーブル・各列・型・キーは埋められない**。標準マイグレーションを利用する方針はQ-17で確定している。
+S11 DR08・S12 行63には認証補助・標準管理データの概略のみがある。Q-17の標準利用方針と2026-11-19の指示に従い、既存マイグレーションのpassword_reset_tokens・sessions・cache・cache_locks・jobs・job_batches・failed_jobsを保持する。これらは業務用7表44列には含めない。
 
-セッション保存先も未指定のため、セッション用DBテーブルの存在・CRUDを確定しない。これらの標準データが挙げられていても、パスワード再設定・メール認証フロー・Sanctum認証・二要素認証などを今回の利用者向け機能に追加しない。
+公開設定例のセッション保存先はdatabase、テストではarrayを使用する。認証経路の接続は後続Issueで扱い、パスワード再設定・メール認証フロー・Sanctum認証・二要素認証などを今回の利用者向け機能に追加しない。
 
 ### Laravel標準との差分・実装時の指定
 
@@ -184,7 +194,7 @@ S11 DR08はパスワードリセット・パーソナルアクセストークン
 | T7 `review_likes` | User↔Reviewの中間表の既定名は `review_user`。Q-11の現行名を維持し、第2引数に `review_likes` を明示する。独立したReviewLikeモデルの通常のテーブル名としては規約どおり |
 | 認証補助の参照資料名 | S12の `password_resets` は旧称。現在の `config/auth.php` と既存マイグレーションは `password_reset_tokens`。標準利用時はこの名前に合わせ、参照資料の旧称を新規テーブル名として採用しない |
 
-中間表の日時をEloquentで自動更新するには [withTimestamps()](https://laravel.com/docs/10.x/eloquent-relationships#retrieving-intermediate-table-columns) を指定する。専用id＋組のUNIQUEはLaravelで許容される構成で、規約違反ではない。独自Pivotモデルと自動採番idを採用する場合だけ `$incrementing = true` が必要になる。採番方法の未確定状態は維持する。
+中間表の日時は [withTimestamps()](https://laravel.com/docs/10.x/eloquent-relationships#retrieving-intermediate-table-columns) で自動管理する。専用id＋組のUNIQUEを保持し、独自Pivotモデルは追加しない。User・Book・Genre・Reviewの保存日時形式は`Y-m-d H:i:s`とする。出版日はDBのdate型を維持し、モデルから`YYYY-MM-DD`文字列として取得する（Q-25）。
 
 ## 外部キーと親削除時の動作
 
@@ -251,15 +261,8 @@ C=作成、R=参照・存在／一意性検証・本人判定・集計、U=更�
 
 ## 埋まらなかった箇所
 
-いずれも未確定。開発側で案を整理し、利用者・API契約や環境・運用条件に関わる部分は [questions.mdの確認先一覧](questions.md#未確定事項の確認先一覧) に従って確認する。
+2026-11-19の承認により、DB構成・NULL・日時・採番・比較方式は上記の共通定義へ反映した。既存password_reset_tokens・sessions・cache・jobs系の標準補助テーブルを保持し、新しい認証フローは追加しない。公開設定例のセッション保存先はdatabase、テストではarrayを使用する。既存テーブルの日時精度・NULL条件を維持し、既存データを削除・再作成しない。
 
-| 対象 | 未確定の内容・確認先 |
-|---|---|
-| DB構成 | 製品・バージョン・文字コード・照合順序。スキーマ実装前に開発側で検討し、指定環境・運用条件は必要に応じてクライアントへ確認 |
-| NULL・既定値・日時 | 各日時列、books.image_url・descriptionのNULL可否、各列の既定値、日時の精度・タイムゾーン・自動設定。開発側で検討し、任意項目やAPI表現はQ-22で確認。comment NOT NULLは確定済み |
-| ID採番 | users.id以外の方式。id主キー・bigint unsignedは確定、採番方法は開発側検討 |
-| 比較・追加制約 | Q-04のジャンル名比較を満たす方式、メール等の比較、ratingのCHECK・ON UPDATE・追加索引は開発側検討。新しい業務制限を加える場合はクライアントへ確認 |
-| 認証補助 | 標準テーブルの具体構成・セッション保存先・F-01〜03のCRUD。開発側で検討し運用条件は必要に応じて確認 |
-| APIの登録者 | Q-18をクライアントへ確認してF-25へ反映 |
+books.description・image_urlはNULL許容。POSTの省略・null・空文字はNULL保存、PUTの省略は既存値維持、明示的null・空文字はNULLへ変更する。Webの空欄もNULLへ統一する。後続のWeb／API保存処理で適用し、Issue #1では物理定義を検証する。
 
-F-28の単一業務CRUD分類は対象外で、未回答仕様ではない。出版日のBladeへの受け渡しはQ-25、未指定エラー文言はQ-19。APIのnull・日時例からDB定義を確定しない。
+API更新の登録者変更（Q-18）、任意項目以外のJSON詳細・検索とページ（Q-22）、保存競合・障害（Q-23）、未指定エラー文言（Q-19）は未確定のまま。
