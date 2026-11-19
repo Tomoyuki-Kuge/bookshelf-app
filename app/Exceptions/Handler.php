@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -28,6 +29,21 @@ class Handler extends ExceptionHandler
         'password',
         'password_confirmation',
     ];
+
+    /** 認証フォームでは名前とメールの文字列だけを旧入力へ戻す。 */
+    protected function invalid($request, ValidationException $exception)
+    {
+        if ($request->is('login', 'register')) {
+            $fields = $request->is('register') ? ['name', 'email'] : ['email'];
+            $input = array_filter($request->only($fields), fn ($value) => is_string($value));
+
+            return redirect($exception->redirectTo ?? url()->previous())
+                ->withInput($input)
+                ->withErrors($exception->errors(), $exception->errorBag);
+        }
+
+        return parent::invalid($request, $exception);
+    }
 
     /**
      * Register the exception handling callbacks for the application.
