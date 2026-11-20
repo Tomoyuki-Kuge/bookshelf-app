@@ -35,7 +35,7 @@ Bookshelfは、書籍の登録・レビュー・評価・お気に入り管理�
 
 ## 3. 環境構成とコマンド実行のルール
 
-- Laravel 10 / PHP 8.2系のSail環境を前提とする。
+- PHP 8.5系 / Laravel 10.x / MySQL 8.4系のSail環境を前提とする。対応範囲と検証方針は [docs/design/README.md](docs/design/README.md#開発環境) を参照する。
 - **コンテナ内実行**：Laravel・PHP・依存管理のコマンドはプロジェクトルートから、原則 `laravel.test` コンテナ内で実行する。
 - **`.env` の保護**：Sail・Compose・Artisan・PHPUnitによる間接的な読み込みも避ける。Composeの `--env-file` 指定だけ、またはArtisan単体の環境指定だけで安全と判断せず、子プロセスも確認する。`.env` を生成・変更する `composer setup` は実行しない。
 - **破壊的コマンドの禁止**：`migrate:fresh` やボリューム削除などの既存データ破棄コマンドは無断で実行しない。

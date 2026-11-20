@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.1",
+        "php": "8.5.*",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^10.10",
         "laravel/tinker": "^2.8"
@@ -46,8 +46,8 @@
             "npx concurrently \"php artisan serve\" \"php artisan queue:work --tries=1\" \"npm run dev\" --names=server,queue,vite --kill-others"
         ],
         "test": [
-            "@php artisan config:clear --ansi @no_additional_args",
-            "@php artisan test"
+            "@php artisan config:clear --env=testing --ansi @no_additional_args",
+            "@php artisan test --env=testing"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
@@ -77,7 +77,7 @@
             "php-http/discovery": true
         },
         "platform": {
-            "php": "8.2.0"
+            "php": "8.5.0"
         }
     },
     "minimum-stability": "stable",

@@ -1,58 +1,53 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Bookshelf
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+書籍の登録・レビュー・評価・お気に入り管理を行うLaravelアプリです。機能の範囲と仕様は[設計書](docs/design/README.md)、開発時の制約は[AGENTS.md](AGENTS.md)を参照してください。
 
-## About Laravel
+## 開発環境
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| 項目 | バージョン・設定 |
+| --- | --- |
+| PHP | 8.5系（Sailの`runtimes/8.5`） |
+| Laravel | 10.x（インストールするパッチ版は`composer.lock`で統一） |
+| DB | MySQL 8.4系、InnoDB、utf8mb4／utf8mb4_unicode_ci |
+| コンテナ | Docker Compose／Laravel Sail |
+| フロントエンド | Sail同梱のNode.js 24系／npm、Vite |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+PHP要件・依存解決の基準は`composer.json`、実行環境は`compose.yaml`、共有する設定例は`.env.example`に定義しています。Laravel 10とPHP 8.5の対応範囲は[設計書の開発環境](docs/design/README.md#開発環境)を参照してください。
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## 開発者向けの起動・再構築
 
-## Learning Laravel
+Dockerを起動し、Composer依存関係をインストールした状態で、プロジェクトルートから実行します。初回の依存インストールにもPHP 8.5のComposer環境を使用してください。開発用の`.env`の準備・調整は開発者自身が行います。`.env.example`の`WWWUSER`・`WWWGROUP`は、必要に応じてホスト側のユーザー・グループIDに合わせてください。
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```sh
+./vendor/bin/sail build laravel.test
+./vendor/bin/sail up -d
+./vendor/bin/sail composer install
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail npm ci
+./vendor/bin/sail npm run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+既存環境のPHPを切り替える際もアプリコンテナを再構築します。MySQLの既存ボリュームを保持し、`migrate:fresh`や`down -v`は実行しません。アプリは`http://localhost`、ホストからのDB接続先は設定例では`127.0.0.1:3307`です。コンテナ間のDB接続先は`mysql:3306`です。
 
-## Contributing
+## `.env`を読み込まない検証
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+AIエージェントは`.env`の直接・間接の読み書きを禁止しています。Sailの起動スクリプトも`.env`を読み込むため、検証にはDocker Composeを直接使います。以下はPHP 8.5のアプリコンテナとMySQL 8.4が起動済みであることが前提です。
 
-## Code of Conduct
+```sh
+docker compose --env-file .env.example -f compose.yaml config --quiet
+docker compose --env-file .env.example -f compose.yaml exec -T laravel.test php -v
+docker compose --env-file .env.example -f compose.yaml exec -T laravel.test composer validate --strict
+docker compose --env-file .env.example -f compose.yaml exec -T laravel.test composer check-platform-reqs --lock
+docker compose --env-file .env.example -f compose.yaml exec -T -e APP_ENV=testing laravel.test composer test
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+`.env.testing`にはテスト専用の公開設定を置き、Laravel本体とテストの子プロセスの両方で読み込みます。アプリキーはテスト専用で、開発用・本番用には使いません。DBの既定接続先は`mysql:3306`、DB名は`testing`、利用者・パスワードは`.env.example`と同じサンプル値です。個別環境で接続情報が異なる場合は、実行時の環境変数で上書きし、認証情報をコミットしないでください。
 
-## Security Vulnerabilities
+MySQLの初回起動時はSailの初期化スクリプトが`testing`データベースを作成します。既存ボリュームに存在しない場合は、既存データを残したまま開発者が追加してください。共通データ基盤のテストはDB名とMySQL 8.4系を確認し、通常のmigrationとトランザクションで検証します。
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+コード整形は変更したPHPファイルを明示して実行します。
 
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```sh
+docker compose --env-file .env.example -f compose.yaml exec -T laravel.test vendor/bin/pint config/database.php
+git diff --check
+```
