@@ -1,25 +1,19 @@
 <?php
 
+/** 初期データのDatabaseSeederの責務を実行する。 */
+
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
+    /** 依存順に投入し、途中失敗はこの実行全体を取り消す。 */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        DB::transaction(function () {
+            $this->call([UserSeeder::class, GenreSeeder::class, BookSeeder::class, ReviewSeeder::class, FavoriteSeeder::class, ReviewLikeSeeder::class]);
+        });
     }
 }
