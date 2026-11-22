@@ -4,12 +4,12 @@
 
 - 実装単位: 4 / 12
 - 対象: F-04〜05、SC-01〜02
-- 現状: books/index.blade.php・books/show.blade.phpはあるが、Bookモデルと業務Controller・名前付きルートは未実装。一覧は`$books`と`reviews_avg_rating`などを参照する。
+- 現状（2026-11-23、main `062b9aa`時点）: Book／Genre／Review／Userモデル・関連・Policy・名前付きルートは実装済み。BookController::indexはジャンル・平均評価を含む一覧を登録日時降順・同日時ID降順、10件／ページで表示する。books.showは一時的な501で、詳細表示の接続と一覧・詳細の検証が残る。
 - 設計: [features.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/features.md)、[screens.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/screens.md)、[permissions-api.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/permissions-api.md)、[data.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/data.md)、[questions.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md)
 
 ## 受け入れ条件（AC）
 
-[acceptance.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/acceptance.md#4-公開の書籍一覧詳細を閲覧できる)の原文を記載する。全項目未確認で、実装・確認済みを示さない。
+[acceptance.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/acceptance.md#4-公開の書籍一覧詳細を閲覧できる)の現行本文に合わせる。チェック状態は今回変更せず、過去の確認結果・後続確認は検証欄を参照する。設計の承認を実装完了・手動確認済みとは扱わない。
 
 - [ ] AC-4-01: ゲストで書籍一覧にアクセスすると、登録日時の新しい順に1ページ最大10冊が表示され、カードから対象の詳細へ移動できる。
 - [ ] AC-4-02: 書籍詳細にアクセスすると、書籍情報と登録日時の新しい順の全レビューが、投稿者名・評価・コメント・投稿日・いいね数付きで表示される。
@@ -20,13 +20,15 @@
 
 ## スコープの切り分け
 
-### 今回実装するもの
+### この単位の実装範囲
 
 - 公開GET `/`（books.index）と`/books/{book}`（books.show）を接続する。GET `/books`は追加しない。
 - 一覧は登録日時降順・同日時ID降順で10件／ページとし、画像・著者・全ジャンル・レビューがある場合だけ星と平均評価を表示する。
 - 詳細へ書籍情報と全レビューを登録日時降順で渡す。レビューはページ分割せず、投稿者名・評価・コメント・投稿日・いいね数を表示する。
 - ゲスト／認証済みの表示、本人操作、いいね・お気に入り状態、フォームと戻り先を既存Bladeの参照に合わせる。保存操作自体は各対応単位で完成させる。
 - 書籍0件・レビュー0件・画像／説明なし・存在しない書籍の表示を確認し、所定の文言・代替画像表示を維持する。
+
+- 一覧の既存実装を再利用し、更新日時に左右されない並び順、別書籍のレビューの混入防止、書籍作成者にも他人のレビューの編集・削除を表示しないことを確認する。
 
 ### 対象外・維持する既存動作
 
@@ -37,14 +39,15 @@
 
 - 対応するテスト観点: T-4-1〜T-4-12（[test_case.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/test_case.md#4-公開の書籍一覧詳細を閲覧できる)）。
 - 正常系・異常系・境界値と、（※仕様保留中）の観点を分けて扱う。未承認の推奨案を期待値にしない。
-- 今回はIssue作成のみのため、受け入れ条件の手動確認・自動テストは未実行。
+- 本単位の処理本体・手動ACの完了は未確認。既存のルート・モデル・認可テストと区別する。今回の本文更新では実装・自動テスト・画面確認を行っていない。
 
-## 未決事項・確認事項
+## 確定事項と残る確認事項
 
-- [Q-25](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-25出版日のbladeへの受け渡し形式): （※仕様保留中）出版日のモデルから既存Bladeへの受け渡し。YYYY-MM-DD文字列へ整形する推奨案を開発側で検討・記録し、単位6の編集フォームとも整合させる。
+- [Q-25](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-25出版日のbladeへの受け渡し形式)：出版日はDBのdate型を維持し、モデルからYYYY-MM-DD文字列として既存Bladeへ渡す方針が承認済み。詳細表示を本単位、編集フォームの既存値表示を単位6で確認する。T-4-12全体を本単位だけで確認済みにしない。
+- 本単位の閲覧仕様に固有の未回答事項はない。レビュー・書籍の入力検証や未指定エラー文言、保存結果の確認は対応する後続単位で扱う。
 
-### 初期案・決定事項の扱い
+### 設計・決定事項の扱い
 
-- 未回答事項の課題・推奨案・確認先はquestions.mdを正本とする。上記の案は承認・仕様確定を意味しない。回答または開発側の決定を設計書へ記録してから実装・検証する。
-- 会話で合意したIssue化の範囲は「設計書の12実装単位を、1単位1件」。個々の未確定仕様の採用は含まない。
+- 回答状況・未指定文言の正本はquestions.md。Q-18・22〜26とDB物理条件は承認済みで、Q-19の未指定の個別文言は保留を維持する。新たな仕様判断が必要なら、設計へ記録・承認後に実装・検証する。
+- 「設計書の12実装単位を、1単位1件」の範囲を維持する。今回の本文同期は仕様の新規決定・アプリの変更・テスト再実行ではなく、Issueの開閉状態とACのチェック状態も変更しない。
 - 関連・着手順の目安（提案）: 実装単位1・2を参照する。実装の前提と、上記ACを画面で確認できる時期は分けて扱う。

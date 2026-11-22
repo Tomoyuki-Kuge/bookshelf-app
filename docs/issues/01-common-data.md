@@ -4,12 +4,12 @@
 
 - 実装単位: 1 / 12
 - 対象: 全基本機能のデータ基盤（F-01〜28）
-- 現状: `users`・`password_reset_tokens`・`sessions`、cache・jobs系の標準マイグレーションとUserモデルがある。書籍などの6業務表と、それらを扱うモデル・関連は未実装。Userのパスワードハッシュ・秘匿属性を確認するテストはある。
+- 現状（2026-11-23、main `062b9aa`時点）: 基本7業務表・モデル4種・関連・FactoryとBookPolicy／ReviewPolicyは実装済み。`CommonDataFoundationTest.php`等で物理定義・関連・削除制約を検証している。画面依存のAC-1-01〜02は後続の接続後に確認する。
 - 設計: [data.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/data.md)、[questions.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md)
 
 ## 受け入れ条件（AC）
 
-[acceptance.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/acceptance.md#1-共通データ基盤)の原文を記載する。全項目未確認で、実装・確認済みを示さない。
+[acceptance.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/acceptance.md#1-共通データ基盤)の現行本文に合わせる。チェック状態は今回変更せず、過去の確認結果・後続確認は検証欄を参照する。設計の承認を実装完了・手動確認済みとは扱わない。
 
 - [ ] AC-1-01: 複数ジャンルとレビューを持つ確認用書籍の詳細にアクセスすると、その書籍に紐付くジャンル・投稿者名・評価・コメント・いいね数が表示される。
 - [ ] AC-1-02: 確認用利用者でログインして書籍詳細とお気に入り一覧にアクセスすると、その利用者のお気に入り・いいねの登録状態が表示される。
@@ -18,7 +18,7 @@
 
 ## スコープの切り分け
 
-### 今回実装するもの
+### この単位の実装範囲
 
 - 既存の`users`を踏まえ、基本7業務表・44列のうち不足する物理定義を整備する。列・型・主キー・確定したNULL条件はdata.mdに従う。
 - `book_genre`・`favorites`・`review_likes`の専用IDと組のUNIQUE、全外部キー、CASCADE／RESTRICTを定義する。reviewsの利用者・書籍の組にUNIQUEを追加しない。
@@ -34,16 +34,16 @@
 
 - 対応するテスト観点: T-1-1〜T-1-13（[test_case.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/test_case.md#1-共通データ基盤)）。
 - 正常系・異常系・境界値と、（※仕様保留中）の観点を分けて扱う。未承認の推奨案を期待値にしない。
-- 今回はIssue作成のみのため、受け入れ条件の手動確認・自動テストは未実行。
+- 単位1の内部制約・関連・削除は既存の自動テストで検証済み。AC-1-01〜02は画面依存のため後続単位で確認する。検証履歴は[PR #16](https://github.com/Tomoyuki-Kuge/bookshelf-app/pull/16)と[CommonDataFoundationTest.php](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/tests/Feature/CommonDataFoundationTest.php)を参照。本更新ではテスト・画面操作を再実行していない。
 
-## 未決事項・確認事項
+## 確定事項と残る確認事項
 
-- [Q-22](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-22公開apiの入出力表現): （※仕様保留中）任意の説明・画像URLの保存値とNULL可否。省略／null／空文字を区別する推奨案は未承認。スキーマ実装前に確認する。
-- [Q-25](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-25出版日のbladeへの受け渡し形式): （※仕様保留中）出版日のモデルからBladeへの受け渡し。YYYY-MM-DD文字列へ整形する案は、開発側の検討・記録後に適用する。
-- [DB物理定義](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#未確定事項の確認先一覧): （※仕様保留中）DB製品・照合順序、NULL・既定値・日時・採番・追加制約、認証補助／セッション構成。data.mdの未確定事項を開発側で整理し、環境・契約に関わる部分を必要に応じて確認する。
+- [Q-22](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-22公開apiの入出力表現)：説明・画像URLはDBでNULL許容。Web空欄、APIのPOST／PUTにおける省略・null・空文字の保存契約は承認済み。
+- [Q-25](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-25出版日のbladeへの受け渡し形式)：DBはdate型、モデルから既存BladeへYYYY-MM-DD文字列で渡す方針は承認済み。
+- [DB物理定義](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/data.md#埋まらなかった箇所)：PHP 8.5・Laravel 10・MySQL 8.4、InnoDB・utf8mb4／utf8mb4_unicode_ci、自動採番、日時NULL許容・秒精度・UTC・Eloquent管理、ratingのCHECKなし、既存補助テーブル維持は承認済み。ジャンル名の全半角区別・英字大小同一を満たす式UNIQUE索引も実装済み。画面・業務入力検証は別単位で確認する。
 
-### 初期案・決定事項の扱い
+### 設計・決定事項の扱い
 
-- 未回答事項の課題・推奨案・確認先はquestions.mdを正本とする。上記の案は承認・仕様確定を意味しない。回答または開発側の決定を設計書へ記録してから実装・検証する。
-- 会話で合意したIssue化の範囲は「設計書の12実装単位を、1単位1件」。個々の未確定仕様の採用は含まない。
+- 回答状況・未指定文言の正本はquestions.md。Q-18・22〜26とDB物理条件は承認済みで、Q-19の未指定の個別文言は保留を維持する。新たな仕様判断が必要なら、設計へ記録・承認後に実装・検証する。
+- 「設計書の12実装単位を、1単位1件」の範囲を維持する。今回の本文同期は仕様の新規決定・アプリの変更・テスト再実行ではなく、Issueの開閉状態とACのチェック状態も変更しない。
 - 関連・着手順の目安（提案）: 共通データ基盤から着手する。物理定義の未決事項を整理し、後続画面が揃う前に内部制約を検証する。
