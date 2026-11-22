@@ -1,8 +1,8 @@
 # 権限・ルーティング・公開API設計
 
-作成日: 2026-11-15 / 最終整理日: 2026-11-20
+作成日: 2026-11-15 / 最終整理日: 2026-11-22
 
-共通方針は [README.md](README.md)、機能はfeatures.md、確定回答・未回答案はquestions.mdに従う。根拠はS5・7・8・13とQA。**APIのキー・型・表現などの詳細案はQ-22で未承認**、登録者変更はQ-18、障害時応答はQ-23で保留する。
+共通方針は [README.md](README.md)、機能はfeatures.md、確定回答・未回答案はquestions.mdに従う。根拠はS5・7・8・13とQA。2026-11-22確認のQAに従い、API契約（Q-22）・登録者変更（Q-18）・障害時応答（Q-23）を確定する。未指定の個別エラー文言はQ-19の残件に従う。
 
 ## 権限マトリクス
 
@@ -53,7 +53,7 @@
 - Laravel 10・PHP 8.2に対応するFortifyを導入する。候補v1.30.0の依存条件を確認済みで、導入時の依存解決結果をcomposer.lockに固定する。
 - 自動ルート登録を無効にし、下表の認証5経路のみFortifyのControllerへ接続する。登録はFormRequestの検証とCreatesNewUsersの登録Action、ログインはFortifyのLoginRequestを拡張したFormRequestで入力条件・日本語messages()を定義する。認証・セッション管理を独自実装で並立させない。
 - 登録成功はintendedの有無によらず`/`へ、ログイン成功は元の保護ページまたは`/`へ、ログアウトはセッション破棄・CSRFトークン再生成後`/login`へ。既存の認証済みゲスト画面からの`/`への誘導を利用する。
-- ログイン試行制限はFortify標準（同一メール・IPで失敗5回、60秒）を維持し、制限時はemail欄下へ「ログインの試行回数が多すぎます。:seconds秒後に再度お試しください。」と日本語表示する。認証エラーの暫定採用はQ-19を参照する。
+- ログイン試行制限はFortify標準（同一メール・IPで失敗5回、60秒）を維持し、制限時はemail欄下へ「ログインの試行回数が多すぎます。:seconds秒後に再度お試しください。」と日本語表示する。認証エラーの正式文言と未指定文言の暫定採用はQ-19を参照する。
 - `/`の既存書籍一覧とGET `/books/create`の既存登録フォームだけは、認証後の導線確認に必要な実データの読み取りを接続する。一覧は既存の順序・10件ページ分割・ジャンル・平均評価の表示契約に従い、登録フォームには既存ジャンルを渡す。
 - その他の業務経路は下表どおりの名前・引数・メソッド・認証条件で骨組みを登録し、処理本体は一時的に501とする。書籍・レビューの本人制限はPolicyで適用する。501は開発中の未実装を示し、完成時の仕様やQ-23の障害応答を変更するものではない。後続Issueで表示・保存を接続する。
 - パスワード再設定、確認、変更、メール認証、二要素認証、プロフィール変更等の追加経路は公開しない。各業務機能・公開API・Seederの完成は今回に含めない。
@@ -92,36 +92,38 @@
 - 一覧は `/` を採用しGET /booksは追加しない。POST /booksは登録用。固定のcreateパスは可変パスより先に解決し、GETで変更しない。
 - BookPolicy・ReviewPolicyはGET編集・PUT更新・DELETEごとに判定。画面の本人操作表示と直接アクセスの制御を一致させる。
 - Webの作成者・お気に入り・いいねの利用者は認証情報から設定し、入力で登録者を変更しない。
-- favorites.toggleは操作元の詳細／一覧へ戻す。空ページの補正方法はQ-24で未確定。
+- favorites.toggleは操作元の詳細／一覧へ戻す。解除後は現ページを維持し、消滅時のみ最後の有効ページ（全件0件なら1ページ目）へ補正する（Q-24）。
 
 ## 公開API
 
 ### 共通契約・経路
 
-5本すべて認証不要。トークン発行やジャンル・レビュー・お気に入りのAPIは追加しない。API Resourceを使い、成功本文はdataに包む。一覧はlinks・meta、削除204は本文なし、エラーでフォームへリダイレクトしない。Accept: application/json、POST・PUTのContent-Type: application/jsonを詳細案とする。
+5本すべて認証不要。トークン発行やジャンル・レビュー・お気に入りのAPIは追加しない。BookResourceを使い、成功本文はdataに包む。一覧はlinks・meta、削除204は本文なし、エラーでフォームへリダイレクトしない。要求ヘッダーはAccept: application/json、POST・PUTはContent-Type: application/jsonとする（Q-22承認済み）。
 
 | API／機能 | メソッド・エンドポイント | 入力 | 成功 | 業務上のエラー |
 |---|---|---|---|---|
 | AP01／F-22 | GET `/api/v1/books` | 一覧クエリ | 200、書籍配列＋ページ情報 | 422 |
-| AP02／F-23 | GET `/api/v1/books/{book}` | 書籍ID | 200、書籍・ジャンル・レビュー | 404 |
-| AP03／F-24 | POST `/api/v1/books` | 書籍JSON | 201、保存後の書籍・ジャンル | 422 |
-| AP04／F-25 | PUT `/api/v1/books/{book}` | 書籍ID＋書籍JSON | 200、保存後の書籍・ジャンル | 404・422 |
+| AP02／F-23 | GET `/api/v1/books/{book}` | 書籍ID | 200、書籍・ジャンル・レビュー・集計 | 404 |
+| AP03／F-24 | POST `/api/v1/books` | 書籍JSON | 201、保存後の詳細と同じ構造 | 422 |
+| AP04／F-25 | PUT `/api/v1/books/{book}` | 書籍ID＋書籍JSON | 200、保存後の詳細と同じ構造 | 404・422 |
 | AP05／F-26 | DELETE `/api/v1/books/{book}` | 書籍ID、ボディなし | 204、本文なし | 404 |
 
 ### 入力定義
 
-AP01のクエリ（Q-07の確定条件、page省略時はQ-22の案）：
+AP01のクエリ（Q-07・22の確定条件）：
 
 | キー | 型・必須 | 条件 |
 |---|---|---|
 | `keyword` | 文字列・任意 | 255文字以内。タイトルまたは著者の部分一致 |
 | `genre_id` | 整数・任意 | 実在するジャンルID |
-| `page` | 整数・任意 | 1以上。省略時1とする設計案 |
+| `page` | 整数・任意 | 1以上。省略時1 |
 | `per_page` | 整数・任意 | 1〜100、省略時20 |
 
-タイトルOR著者の部分一致を括り、ジャンル条件とANDで結ぶ。登録日時降順、存在しないgenre_idは422、検索結果なしは200＋空配列。同日時順・比較方法・ページ条件の保持・範囲外応答はQ-22の案を参照する。
+keywordは前後空白を除去し、空なら検索条件なし。英字大小は区別せず全角半角は区別し、`%`・`_` は通常の文字として部分一致させる。タイトルOR著者を括り、ジャンル条件とANDで結ぶ。登録日時降順・同日時ID降順、存在しないgenre_idは422。比較・エスケープの具体方式は開発側で実装時に確認する。
 
-AP03・04のボディ（必須条件はQ-04・07、キー・JSON型・表記はQ-22の案）：
+検索結果なしは200＋空配列。最終ページを超える正のpageも200＋空配列で、current_pageは要求値を維持し、from/toはnull、last_pageは実際の最終ページ（全体0件なら1）とする。0件のpage=1ではcurrent_page/last_pageは1、totalは0、from/to・prev/nextはnull。リンクへkeyword・genre_id・per_pageの適用中の条件を引き継ぐ。Webのお気に入りの補正とは区別する。
+
+AP03・04のボディ（Q-04・07・22の確定条件）：
 
 | キー | JSONの型 | 条件 |
 |---|---|---|
@@ -129,37 +131,41 @@ AP03・04のボディ（必須条件はQ-04・07、キー・JSON型・表記はQ
 | `title` | 文字列 | 必須、255文字以内 |
 | `author` | 文字列 | 必須、255文字以内 |
 | `isbn` | 文字列 | 必須、ハイフンなし半角数字13桁、一意。PUTでは自身を除外 |
-| `published_date` | 文字列 | 必須、有効な日付、未来日可。表記は `YYYY-MM-DD` とする設計案 |
+| `published_date` | 文字列 | 必須、有効な日付、未来日可。`YYYY-MM-DD` |
 | `description` | 文字列／null | 任意、5,000文字以内 |
 | `image_url` | 文字列／null | 任意、255文字以内、HTTP／HTTPSのURL |
-| `genres` | 整数配列 | 必須、既存IDを1つ以上、重複不可。キー名はWeb項目に合わせる設計案 |
+| `genres` | 整数配列 | 必須、既存IDを1つ以上、重複不可 |
 
-PUTも必須項目をすべて要求し、ジャンル集合は置換する。ISBNは数値化・自動変換・チェックディジット検証をしない。user_id必須と登録者変更の許可（Q-18）は区別。任意2項目はQ-22の2026-11-19承認に従いDB・APIともNULL許容。POSTの省略・null・空文字はNULL保存、PUT省略は既存値維持、明示的null・空文字はNULLへ変更する。その他のJSON詳細は未確定。
+PUTも必須項目をすべて要求し、ジャンル集合は置換する。ISBNは数値化・自動変換・チェックディジット検証をしない。Q-18に従い実在する指定user_idへの登録者変更を許可し、Webの編集・削除権限は保存後のbooks.user_idに従って新登録者へ移す。APIにWeb本人用Policyや認証由来の401・403を追加しない。
+
+任意2項目はDB・APIともNULL許容。POSTの省略・null・空文字はNULL保存、PUT省略は既存値維持、明示的null・空文字はNULLへ変更する。
 
 ### 出力定義・JSON例
 
-次はQ-07の返却情報を具体化した**Q-22の未承認案**。日付・日時・平均・nullの例から、採用やDB定義の確定を判断しない。
+Q-22の承認と4点の修正を反映した確定契約。ID・件数・評価は整数、平均は数値またはnullとし、表示用の文字列へ変換しない。平均は `round(..., 1)` で小数第1位へ四捨五入する。Webの表示桁数とランキングの未丸め比較は変更しない。
 
 | 定義 | キー・型・配置 |
 |---|---|
-| 共通書籍 | id:整数。title・author・isbn・published_date:文字列。description・image_url:文字列またはnull。genres:配列、各要素はid:整数・name:文字列 |
-| AP01（200） | data:共通書籍の配列。各書籍にaverage_rating:数値またはnull、reviews_count:整数。未評価はnull・0。最上位にlinks・meta |
-| AP02（200） | data:共通書籍1件＋reviews配列。レビューはid:整数・user_name:文字列・rating:整数1〜5・comment:文字列・created_at:日時文字列。0件は[]、登録日時降順で全件 |
-| AP03（201）・AP04（200） | data:保存後の共通書籍1件。レビュー配列・集計は加えない |
+| 共通書籍 | id:整数。title・author・isbn・published_date:文字列。description・image_url:文字列またはnull。genres:配列、各要素はid:整数・name:文字列。average_rating:数値またはnull、review_count:整数。未評価はnull・0 |
+| AP01（200） | data:共通書籍の配列。最上位にlinks・meta。レビュー配列は含めない |
+| AP02（200） | data:共通書籍1件＋reviews配列。レビューはid:整数・user_name:文字列・rating:整数1〜5・comment:文字列・created_at:日時文字列。0件は[]、登録日時降順・同日時ID降順で全件 |
+| AP03（201）・AP04（200） | data:保存後の共通書籍1件＋reviews配列。AP02と同じBookResource・構造で、投稿者・平均・レビュー件数も返す |
 | AP05（204） | 本文なし。dataや成功文言も返さない。削除済みIDへの再削除は404 |
-| links | 最上位オブジェクト。first・last:ページURL文字列、prev・next:URL文字列またはnull。端では該当の前後リンクをnullとする案 |
+| links | 最上位オブジェクト。first・last:ページURL文字列、prev・next:URL文字列またはnull。端では該当の前後リンクをnullとする |
 | meta | 最上位オブジェクト。current_page・last_page・per_page・total:整数、from・to:整数またはnull、path:文字列。totalは全体件数、from/toはページ内の先頭／末尾の通し番号 |
 
-投稿者メール等の要件外の個人情報は返さない。AP05の物理削除・CASCADE範囲は [data.md](data.md#外部キーと親削除時の動作) を参照。0件・範囲外のmetaと検索条件を含むリンクはQ-22の案。
+出版日は時差変換せずYYYY-MM-DD、レビューのcreated_atはISO 8601・UTC・秒単位（例：`2026-11-18T00:00:00Z`）。POST・PUTは保存後に `$book->load(['genres', 'reviews.user'])->loadCount('reviews')->loadAvg('reviews', 'rating')` し、詳細と共通のBookResourceで返す。公開キーは `review_count` であり、Eloquent内部の `reviews_count` 属性と区別して対応付ける。
 
-AP01の構造例（該当1冊、相対URL。Q-22の表現案）：
+投稿者メール等の要件外の個人情報は返さない。AP05の物理削除・CASCADE範囲は [data.md](data.md#外部キーと親削除時の動作) を参照。
+
+AP01の構造例（該当1冊、相対URL）：
 
 ```json
 {
   "data": [{
     "id": 1, "title": "吾輩は猫である", "author": "夏目漱石", "isbn": "9784101010014",
     "published_date": "1905-01-01", "description": "書籍の説明です。", "image_url": null,
-    "genres": [{"id": 1, "name": "小説"}], "average_rating": 5, "reviews_count": 1
+    "genres": [{"id": 1, "name": "小説"}], "average_rating": 4.5, "review_count": 2
   }],
   "links": {"first": "/api/v1/books?genre_id=1&per_page=1&page=1", "last": "/api/v1/books?genre_id=1&per_page=1&page=1", "prev": null, "next": null},
   "meta": {"current_page": 1, "from": 1, "last_page": 1, "path": "/api/v1/books", "per_page": 1, "to": 1, "total": 1}
@@ -168,7 +174,7 @@ AP01の構造例（該当1冊、相対URL。Q-22の表現案）：
 
 ### エラーの返し方
 
-FormRequestに分離しmessages()で日本語を定義する（S8）。422はmessageとerrors、404はmessage。errorsは項目名→メッセージ文字列配列とする案。genres.0等の配列要素キーもQ-22で確認する。
+FormRequestに分離しmessages()で日本語を定義する（S8）。422はmessageとerrors、errorsは項目名→メッセージ文字列配列とする。genres.0等の配列要素キーも使用する。
 
 ```json
 {
@@ -177,10 +183,16 @@ FormRequestに分離しmessages()で日本語を定義する（S8）。422はmes
 }
 ```
 
-上例の項目別2文言と、ISBN重複「そのISBNは既に使用されています。」はQ-05で確定。最上位message・404文言・未指定の項目別文言はQ-19・22の案で未確定。user_id・検索genre_id・genres内の不正IDは422、URL上の書籍不存在404と区別する。
+書籍不存在の404は、詳細・更新・削除とも次の形式とする。
 
-基本APIに認証・所有者制限由来の401・403は加えない。対象なしと入力不正の優先順位、不正JSON・非対応メソッド・障害応答はQ-23の未承認案を [behavior.md](behavior.md#例外方針) と合わせて確認する。
+```json
+{"error": "書籍が見つかりませんでした。"}
+```
+
+ISBN重複は「そのISBNは既に使用されています。」。不正なuser_idは「指定したユーザーが存在しません。」、不正な検索genre_idは「指定したジャンルが存在しません。」とし、いずれも422。page・per_page・genresの型・ID型のエラーはQ-22の確定文言、未指定の項目別文言はQ-19の保留範囲に従う。
+
+基本APIに認証・所有者制限由来の401・403は加えない。対象なしを入力不正より優先し、不正JSON・非対応メソッド・障害・保存競合時の応答はQ-23と [behavior.md](behavior.md#例外方針) に従う。書籍404のerrorキーと、400・405・422・500のmessageキーを混同しない。
 
 ## 未確定事項
 
-具体的な想定と採否の確認は [questions.md](questions.md) のQ-18・19・22〜23に集約する。Webのお気に入りのページ補正（Q-24）や出版日のBladeへの受け渡し（Q-25）から、API契約を確定しない。
+未指定の個別エラー文言のみ [questions.md](questions.md) のQ-19で確認する。Q-18・22〜26は回答済みであり、検索の比較・排他・例外分類などの具体的な内部方式は、承認済みの契約を満たすよう該当機能の実装時に検討・検証する。

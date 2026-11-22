@@ -64,12 +64,13 @@ class AuthenticationTest extends TestCase
     {
         $existing = User::factory()->create();
         foreach ([
-            [['name' => '', 'email' => '', 'password' => '', 'password_confirmation' => ''], ['name' => 'お名前は必須です。', 'email' => 'メールアドレスは必須です。', 'password' => 'パスワードは必須です。']],
-            [['email' => 'invalid'], ['email' => 'メールアドレスの形式が正しくありません。']],
+            [['name' => '', 'email' => '', 'password' => '', 'password_confirmation' => ''], ['name' => 'お名前を入力してください', 'email' => 'メールアドレスを入力してください', 'password' => 'パスワードを入力してください']],
+            [['email' => 'invalid'], ['email' => 'メールアドレスはメール形式で入力してください']],
             [['email' => $existing->email], ['email' => 'そのメールアドレスは既に使用されています。']],
-            [['password_confirmation' => 'different'], ['password_confirmation' => '確認入力と一致しません']],
-            [['password_confirmation' => ''], ['password_confirmation' => '確認入力と一致しません']],
-            [['password_confirmation' => null], ['password_confirmation' => '確認入力と一致しません']],
+            [['password' => '1234567', 'password_confirmation' => '1234567'], ['password' => 'パスワードは8文字以上で入力してください']],
+            [['password_confirmation' => 'different'], ['password_confirmation' => 'パスワードと一致しません']],
+            [['password_confirmation' => ''], ['password_confirmation' => 'パスワードと一致しません']],
+            [['password_confirmation' => null], ['password_confirmation' => 'パスワードと一致しません']],
         ] as [$input, $errors]) {
             $data = $this->registration($input);
             $count = User::count();
@@ -97,7 +98,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertRenderedAuthForm($response, '/login',
-            ['email' => 'ログイン情報が登録されていません。'],
+            ['email' => 'ログイン情報が登録されていません'],
             ['password'], [$secret], ['email' => $user->email]);
     }
 
@@ -110,7 +111,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertRenderedAuthForm($response, '/login',
-            ['email' => 'メールアドレスの形式が正しくありません。'],
+            ['email' => 'メールアドレスはメール形式で入力してください'],
             ['password'], [$secret], ['email' => 'invalid-email']);
     }
 
@@ -124,7 +125,7 @@ class AuthenticationTest extends TestCase
                 'password' => $secret, 'password_confirmation' => $secret]));
 
         $this->assertRenderedAuthForm($response, '/register',
-            ['name' => 'お名前は必須です。', 'email' => 'メールアドレスの形式が正しくありません。'],
+            ['name' => 'お名前を入力してください', 'email' => 'メールアドレスはメール形式で入力してください'],
             ['password', 'password_confirmation'], [$secret], ['name' => '', 'email' => 'invalid-email']);
         $this->assertSame($count, User::count());
     }
@@ -139,7 +140,7 @@ class AuthenticationTest extends TestCase
         $response = $this->from('/register')->followingRedirects()->post('/register', $input);
 
         $this->assertRenderedAuthForm($response, '/register',
-            ['password_confirmation' => '確認入力と一致しません'],
+            ['password_confirmation' => 'パスワードと一致しません'],
             ['password', 'password_confirmation'], [$secret, $confirmation],
             ['name' => $input['name'], 'email' => $input['email']]);
         $this->assertSame($count, User::count());
@@ -198,6 +199,27 @@ class AuthenticationTest extends TestCase
         $this->get('/login')->assertOk();
     }
 
+    /** 登録のパスワード配列を500にせず拒否し、保存・秘密情報の保持を防ぐ。 */
+    public function test_t_2_registration_rejects_array_passwords_and_confirmations(): void
+    {
+        // 同じ8要素の配列でも、文字列型の検証を省略できないことを確かめる。
+        $password = array_fill(0, 8, 'test-value');
+        foreach ([
+            [['password' => $password, 'password_confirmation' => $password], ['password']],
+            [['password' => $password, 'password_confirmation' => 'password'], ['password', 'password_confirmation']],
+            [['password' => 'password', 'password_confirmation' => $password], ['password_confirmation']],
+        ] as [$input, $errors]) {
+            $before = $this->businessDataSnapshot();
+            $this->from('/register')->post('/register', $this->registration($input))
+                ->assertRedirect('/register')->assertSessionHasErrors($errors);
+            $this->assertGuest();
+            $this->assertSame($before, $this->businessDataSnapshot(), 'パスワード配列を拒否した後の全保存値');
+            $this->assertNull(session()->getOldInput('password'));
+            $this->assertNull(session()->getOldInput('password_confirmation'));
+            $this->get('/register')->assertOk();
+        }
+    }
+
     /** 対応するT-2の認証・導線条件を検証する。 */
     public function test_t_2_3_registration_boundaries(): void
     {
@@ -214,8 +236,11 @@ class AuthenticationTest extends TestCase
     /** 対応するT-2の認証・導線条件を検証する。 */
     public function test_t_2_4_6_7_login_validation_and_authentication_failure(): void
     {
-        foreach ([['email' => '', 'password' => ''], ['email' => 'invalid', 'password' => '']] as $input) {
-            $this->from('/login')->post('/login', $input)->assertRedirect('/login')->assertSessionHasErrors(['email', 'password']);
+        foreach ([
+            [['email' => '', 'password' => ''], ['email' => 'メールアドレスを入力してください', 'password' => 'パスワードを入力してください']],
+            [['email' => 'invalid', 'password' => ''], ['email' => 'メールアドレスはメール形式で入力してください', 'password' => 'パスワードを入力してください']],
+        ] as [$input, $errors]) {
+            $this->from('/login')->post('/login', $input)->assertRedirect('/login')->assertSessionHasErrors($errors);
             $this->assertGuest();
         }
         $user = User::factory()->create(['password' => 'short']);
@@ -223,13 +248,13 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
         $this->post('/logout');
         foreach (['missing@example.com', $user->email] as $email) {
-            $this->from('/login')->post('/login', ['email' => $email, 'password' => 'wrong'])->assertRedirect('/login')->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません。']);
+            $this->from('/login')->post('/login', ['email' => $email, 'password' => 'wrong'])->assertRedirect('/login')->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません']);
             $this->assertGuest();
             $this->assertSame($email, session()->getOldInput('email'));
             $this->assertNull(session()->getOldInput('password'));
             $this->get('/login')->assertOk();
         }
-        $this->post('/login', ['email' => str_repeat('a', 50).'@'.str_repeat('b', 50).'.'.str_repeat('c', 50).'.'.str_repeat('d', 50).'.'.str_repeat('e', 52), 'password' => 'x'])->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません。']);
+        $this->post('/login', ['email' => str_repeat('a', 50).'@'.str_repeat('b', 50).'.'.str_repeat('c', 50).'.'.str_repeat('d', 50).'.'.str_repeat('e', 52), 'password' => 'x'])->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません']);
     }
 
     /** 対応するT-2の認証・導線条件を検証する。 */
@@ -261,7 +286,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create(['password' => 'password']);
         $input = ['email' => $user->email, 'password' => 'wrong'];
         for ($i = 0; $i < 5; $i++) {
-            $this->post('/login', $input)->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません。']);
+            $this->post('/login', $input)->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません']);
         }
         $this->post('/login', array_replace($input, ['password' => 'password']))->assertSessionHasErrors('email');
         $this->assertStringContainsString('ログインの試行回数が多すぎます。', session('errors')->first('email'));
@@ -276,7 +301,7 @@ class AuthenticationTest extends TestCase
         $this->post('/login', array_replace($input, ['password' => 'password']))->assertRedirect('/');
         $this->post('/logout');
         for ($i = 0; $i < 5; $i++) {
-            $this->post('/login', $input)->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません。']);
+            $this->post('/login', $input)->assertSessionHasErrors(['email' => 'ログイン情報が登録されていません']);
         }
     }
 
@@ -439,11 +464,18 @@ class AuthenticationTest extends TestCase
                 ['DELETE', $path, []],
             ];
             // 書籍の他人操作と、書籍作成者による他人レビュー操作を拒否する。
-            $this->actingAs($kind === 'book' ? $other : $owner);
-            foreach ($requests as [$method, $uri, $input]) {
+            $attacker = $kind === 'book' ? $other : $owner;
+            $this->actingAs($attacker);
+            // 本人のuser_idを送信しても、保存済みの所有者を偽装できない。
+            $forgedRequests = [
+                ['PUT', $path, ($kind === 'book' ? $bookInput : $reviewInput) + ['user_id' => $attacker->id]],
+                ['DELETE', $path, ['user_id' => $attacker->id]],
+            ];
+            foreach (array_merge($requests, $forgedRequests) as [$method, $uri, $input]) {
                 $before = $this->businessDataSnapshot();
                 $this->call($method, $uri, $input)->assertForbidden();
-                $this->assertSame($before, $this->businessDataSnapshot(), $method.' '.$uri.' 拒否後の全保存値');
+                $context = $method.' '.$uri.(array_key_exists('user_id', $input) ? '（user_id偽造）' : '');
+                $this->assertSame($before, $this->businessDataSnapshot(), $context.' 拒否後の全保存値');
             }
 
             $this->actingAs($kind === 'book' ? $owner : $other);
