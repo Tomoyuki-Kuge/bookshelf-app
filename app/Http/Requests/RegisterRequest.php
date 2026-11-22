@@ -29,10 +29,10 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'お名前は必須です。', 'name.string' => 'お名前は文字列で入力してください。', 'name.max' => 'お名前は255文字以内で入力してください。',
-            'email.required' => 'メールアドレスは必須です。', 'email.string' => 'メールアドレスの形式が正しくありません。', 'email.email' => 'メールアドレスの形式が正しくありません。', 'email.max' => 'メールアドレスは255文字以内で入力してください。', 'email.unique' => 'そのメールアドレスは既に使用されています。',
-            'password.required' => 'パスワードは必須です。', 'password.string' => 'パスワードは文字列で入力してください。', 'password.min' => 'パスワードは8文字以上で入力してください。',
-            'password_confirmation.same' => '確認入力と一致しません', 'password_confirmation.required_with' => '確認入力と一致しません',
+            'name.required' => 'お名前を入力してください', 'name.string' => 'お名前は文字列で入力してください。', 'name.max' => 'お名前は255文字以内で入力してください。',
+            'email.required' => 'メールアドレスを入力してください', 'email.string' => 'メールアドレスはメール形式で入力してください', 'email.email' => 'メールアドレスはメール形式で入力してください', 'email.max' => 'メールアドレスは255文字以内で入力してください。', 'email.unique' => 'そのメールアドレスは既に使用されています。',
+            'password.required' => 'パスワードを入力してください', 'password.string' => 'パスワードは文字列で入力してください。', 'password.min' => 'パスワードは8文字以上で入力してください',
+            'password_confirmation.same' => 'パスワードと一致しません', 'password_confirmation.required_with' => 'パスワードと一致しません',
         ];
     }
 

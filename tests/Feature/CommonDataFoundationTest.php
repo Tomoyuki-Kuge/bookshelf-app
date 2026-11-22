@@ -239,11 +239,53 @@ class CommonDataFoundationTest extends TestCase
     public function test_t_1_6_all_unique_constraints_reject_duplicates(): void
     {
         $rows = $this->fixtureRows();
-        foreach (['users', 'books', 'genres', 'book_genre', 'favorites', 'review_likes'] as $table) {
+        foreach (['users', 'genres', 'book_genre', 'favorites', 'review_likes'] as $table) {
             $row = $rows[$table];
             unset($row['id']);
             $this->assertRejected(fn () => DB::table($table)->insert($row), 1062);
         }
+    }
+
+    /** T-1-6：ISBN以外の全保存項目を変えた行も、ISBN重複だけで拒否する。 */
+    public function test_t_1_6_duplicate_isbn_is_rejected_independently_of_other_columns(): void
+    {
+        $book = Book::factory()->create([
+            'title' => 'ISBN一意性の基準書籍', 'author' => '基準著者',
+            'published_date' => '2026-01-01', 'description' => '基準の説明',
+            'image_url' => 'https://example.com/original.jpg',
+            'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00',
+        ]);
+        $row = array_replace($book->getAttributes(), [
+            'user_id' => User::factory()->create()->id,
+            'title' => 'ISBN重複を確認する別書籍', 'author' => '別の著者',
+            'published_date' => '2026-01-02', 'description' => '別の説明',
+            'image_url' => 'https://example.com/other.jpg',
+            'created_at' => '2026-01-02 00:00:00', 'updated_at' => '2026-01-02 00:00:00',
+        ]);
+        unset($row['id']);
+        $before = Book::count();
+        $this->assertRejected(fn () => DB::table('books')->insert($row), 1062);
+        $this->assertSame($before, Book::count());
+    }
+
+    /** T-1-6：タイトル等の全項目が同じでも、ISBNが異なれば保存できる。 */
+    public function test_t_1_6_same_book_fields_with_a_different_isbn_are_allowed(): void
+    {
+        $book = Book::factory()->create();
+        $attributes = $book->getAttributes();
+        unset($attributes['id'], $attributes['isbn']);
+        $before = Book::count();
+        $other = Book::factory()->create($attributes);
+        $this->assertSame($before + 1, Book::count());
+        $this->assertNotSame($book->id, $other->id);
+        $this->assertNotSame($book->isbn, $other->isbn);
+
+        $expected = $book->fresh()->getAttributes();
+        $actual = $other->fresh()->getAttributes();
+        unset($expected['id'], $expected['isbn'], $actual['id'], $actual['isbn']);
+        ksort($expected);
+        ksort($actual);
+        $this->assertSame($expected, $actual);
     }
 
     /**

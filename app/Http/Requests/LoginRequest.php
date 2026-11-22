@@ -21,8 +21,8 @@ class LoginRequest extends \Laravel\Fortify\Http\Requests\LoginRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'メールアドレスは必須です。', 'email.string' => 'メールアドレスの形式が正しくありません。', 'email.email' => 'メールアドレスの形式が正しくありません。',
-            'password.required' => 'パスワードは必須です。', 'password.string' => 'パスワードは文字列で入力してください。',
+            'email.required' => 'メールアドレスを入力してください', 'email.string' => 'メールアドレスはメール形式で入力してください', 'email.email' => 'メールアドレスはメール形式で入力してください',
+            'password.required' => 'パスワードを入力してください', 'password.string' => 'パスワードは文字列で入力してください。',
         ];
     }
 }
