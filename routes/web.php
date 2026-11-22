@@ -23,7 +23,7 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->midd
 Route::get('/', [BookController::class, 'index'])->name('books.index');
 Route::get('/books/create', [BookController::class, 'create'])->middleware('auth')->name('books.create');
 Route::post('/books', PendingFeatureController::class)->middleware(['auth'])->name('books.store');
-Route::get('/books/{book}', PendingFeatureController::class)->name('books.show');
+Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book')->name('books.show');
 Route::get('/books/{book}/edit', PendingFeatureController::class)->middleware(['auth', 'can:update,book'])->name('books.edit');
 Route::put('/books/{book}', PendingFeatureController::class)->middleware(['auth', 'can:update,book'])->name('books.update');
 Route::delete('/books/{book}', PendingFeatureController::class)->middleware(['auth', 'can:delete,book'])->name('books.destroy');
