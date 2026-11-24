@@ -2,6 +2,7 @@
 
 /** 既存Bladeの認証経路と接続段階の業務経路を定義する。 */
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\GenreController;
 use App\Http\Controllers\PendingFeatureController;
 use App\Http\Controllers\RegisteredUserController;
 use App\Models\Book;
@@ -12,7 +13,11 @@ use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 
 Route::model('book', Book::class);
 Route::model('review', Review::class);
-Route::model('genre', Genre::class);
+Route::bind('genre', function (string $value) {
+    abort_unless(preg_match('/\A[0-9]+\z/D', $value), 404);
+
+    return Genre::findOrFail($value);
+});
 Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
@@ -27,13 +32,13 @@ Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book'
 Route::get('/books/{book}/edit', PendingFeatureController::class)->middleware(['auth', 'can:update,book'])->name('books.edit');
 Route::put('/books/{book}', PendingFeatureController::class)->middleware(['auth', 'can:update,book'])->name('books.update');
 Route::delete('/books/{book}', PendingFeatureController::class)->middleware(['auth', 'can:delete,book'])->name('books.destroy');
-Route::get('/genres', PendingFeatureController::class)->middleware(['auth'])->name('genres.index');
-Route::get('/genres/create', PendingFeatureController::class)->middleware(['auth'])->name('genres.create');
-Route::post('/genres', PendingFeatureController::class)->middleware(['auth'])->name('genres.store');
-Route::get('/genres/{genre}', PendingFeatureController::class)->middleware(['auth'])->name('genres.show');
-Route::get('/genres/{genre}/edit', PendingFeatureController::class)->middleware(['auth'])->name('genres.edit');
-Route::put('/genres/{genre}', PendingFeatureController::class)->middleware(['auth'])->name('genres.update');
-Route::delete('/genres/{genre}', PendingFeatureController::class)->middleware(['auth'])->name('genres.destroy');
+Route::get('/genres', [GenreController::class, 'index'])->middleware(['auth'])->name('genres.index');
+Route::get('/genres/create', [GenreController::class, 'create'])->middleware(['auth'])->name('genres.create');
+Route::post('/genres', [GenreController::class, 'store'])->middleware(['auth'])->name('genres.store');
+Route::get('/genres/{genre}', [GenreController::class, 'show'])->middleware(['auth'])->name('genres.show');
+Route::get('/genres/{genre}/edit', [GenreController::class, 'edit'])->middleware(['auth'])->name('genres.edit');
+Route::put('/genres/{genre}', [GenreController::class, 'update'])->middleware(['auth'])->name('genres.update');
+Route::delete('/genres/{genre}', [GenreController::class, 'destroy'])->middleware(['auth'])->name('genres.destroy');
 Route::post('/books/{book}/reviews', PendingFeatureController::class)->middleware(['auth'])->name('reviews.store');
 Route::get('/reviews/{review}/edit', PendingFeatureController::class)->middleware(['auth', 'can:update,review'])->name('reviews.edit');
 Route::put('/reviews/{review}', PendingFeatureController::class)->middleware(['auth', 'can:update,review'])->name('reviews.update');
