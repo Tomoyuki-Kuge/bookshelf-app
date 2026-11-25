@@ -1,6 +1,6 @@
 # 権限・ルーティング・公開API設計
 
-作成日: 2026-11-15 / 最終整理日: 2026-11-25
+作成日: 2026-11-15 / 最終整理日: 2026-11-26
 
 共通方針は [README.md](README.md)、機能はfeatures.md、確定回答・未回答案はquestions.mdに従う。根拠はS5・7・8・13とQA。2026-11-22確認のQAに従い、API契約（Q-22）・登録者変更（Q-18）・障害時応答（Q-23）を確定する。未指定の個別エラー文言はQ-19の残件に従う。
 
@@ -47,6 +47,10 @@
 ### Issue #6の書籍管理接続（2026-11-25ユーザー承認）
 
 books.store・edit・update・destroyをBookControllerへ接続し、登録・更新の検証は共通BookRequestで扱う。既存のルート名・HTTPメソッド・認証と本人Policyを維持する。認証→対象解決→本人認可→入力検証の順序と、保存直前の対象・権限再確認はbehavior.mdのIssue #6補足に従う。Web作成者は認証情報から設定して更新でも維持し、公開APIへの本人制限は追加しない。
+
+### Issue #7のレビュー管理接続（2026-11-26ユーザー承認）
+
+reviews.store・edit・update・destroyをReviewControllerへ接続し、投稿・更新はReviewRequestで検証する。既存の名前・HTTPメソッド・認証とReviewPolicyを維持する。投稿者は認証情報、対象書籍は経路から設定し、更新でも維持する。送信されたuser_id・book_idは信頼しない。判定順序と保存直前の存在・本人再確認、親書籍とレビューの排他はbehavior.mdのIssue #7補足に従う。レビューAPI・独立投稿画面・回数制限は追加しない。
 
 ## Webルーティング一覧
 
