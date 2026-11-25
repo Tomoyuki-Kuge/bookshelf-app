@@ -1,6 +1,6 @@
 # データ設計
 
-作成日: 2026-11-14 / S12反映日: 2026-11-15 / 最終整理日: 2026-11-22
+作成日: 2026-11-14 / S12反映日: 2026-11-15 / 最終整理日: 2026-11-26
 
 ## 範囲・根拠
 
@@ -60,7 +60,7 @@ erDiagram
 - `id` は全7表とも `$table->id()` によるbigint unsigned・主キー・AUTO_INCREMENTとする。
 - 日時列はNULL許容・秒精度（`$table->timestamps(0)`、単独列は`timestamp(..., 0)`）・既定値NULL。アプリとMySQL接続セッションをUTC（`+00:00`）に統一し、モデルの保存形式を`Y-m-d H:i:s`に揃える。Eloquentが日時を管理し、DB側のCURRENT_TIMESTAMP既定値・ON UPDATE自動更新を付けない。業務列に独自の既定値は付けない。
 - ratingはintのまま、CHECK制約は追加しない。参照IDを更新する機能は追加せず、外部キーのON UPDATEはRESTRICT。索引はPK・UNIQUE・外部キーに必要なものとジャンル名の式UNIQUEに限定する。
-- 業務上の文字数・形式・必須条件はQ-04および画面設計に従う。SQL型の保存容量と入力上限は別に扱う。
+- 業務上の文字数・形式・必須条件は[画面入力条件](screens.md#入力チェックとエラーメッセージ)、APIのJSON型・必須条件は[API入力定義](permissions-api.md#入力定義)に従う（承認根拠はQ-04・07・22）。SQL型の保存容量と入力上限は別に扱う。
 
 ### T1 `users`
 
@@ -69,10 +69,10 @@ erDiagram
 | 列 | 型 | NOT NULL | キー・用途・条件 |
 |---|---|---|---|
 | `id` | bigint unsigned | ○ | PK。`$table->id()` |
-| `name` | varchar(255) | ○ | 名前。入力必須・255文字以内 |
-| `email` | varchar(255) | ○ | UNIQUE。入力必須・メール形式・255文字以内 |
+| `name` | varchar(255) | ○ | 名前 |
+| `email` | varchar(255) | ○ | UNIQUE。メールアドレス |
 | `email_verified_at` | timestamp | 可（NULL許可） | S12の標準列。メール認証フローを追加する意味ではない |
-| `password` | varchar(255) | ○ | ハッシュ保存。入力必須・8文字以上・確認一致 |
+| `password` | varchar(255) | ○ | パスワードのハッシュ保存 |
 | `remember_token` | varchar(100) | 可（NULL許可） | S12の標準列。ログイン画面に記憶用の入力を追加しない |
 | `created_at` | timestamp | 可（NULL許可） | 作成日時 |
 | `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
@@ -86,13 +86,13 @@ erDiagram
 | 列 | 型 | NOT NULL | キー・用途・条件 |
 |---|---|---|---|
 | `id` | bigint unsigned | ○ | PK。詳細・更新・削除の識別子、並び順の同日時・同点解決 |
-| `user_id` | bigint unsigned | ○ | FK→`users.id`、ON DELETE CASCADE。Web登録はログインユーザー。APIは登録・更新とも指定必須、更新時は実在する指定IDへの登録者変更を許可（Q-18） |
-| `title` | varchar(255) | ○ | タイトル。入力必須・255文字以内 |
-| `author` | varchar(255) | ○ | 著者。入力必須・255文字以内 |
-| `isbn` | varchar(13) | ○ | UNIQUE。入力はハイフンなし半角数字13桁。自身を除外して更新時の一意性検証。自動変換・チェックディジット検証なし |
-| `published_date` | date | ○ | 出版日。入力必須、未来日可 |
-| `image_url` | varchar(255) | 可（NULL許可） | 画像URL。任意・255文字以内・HTTP／HTTPS |
-| `description` | text | 可（NULL許可） | 説明。任意・5,000文字以内 |
+| `user_id` | bigint unsigned | ○ | FK→`users.id`、ON DELETE CASCADE。登録者 |
+| `title` | varchar(255) | ○ | タイトル |
+| `author` | varchar(255) | ○ | 著者 |
+| `isbn` | varchar(13) | ○ | UNIQUE。ISBNを文字列として保存 |
+| `published_date` | date | ○ | 出版日 |
+| `image_url` | varchar(255) | 可（NULL許可） | 画像URL |
+| `description` | text | 可（NULL許可） | 説明 |
 | `created_at` | timestamp | 可（NULL許可） | 登録日時。一覧・ジャンル内書籍の登録日時降順に使用 |
 | `updated_at` | timestamp | 可（NULL許可） | 更新日時。S12 行32で追加済み |
 
@@ -105,7 +105,7 @@ erDiagram
 | 列 | 型 | NOT NULL | キー・用途・条件 |
 |---|---|---|---|
 | `id` | bigint unsigned | ○ | PK。一覧はID昇順 |
-| `name` | varchar(255) | ○ | Q-04の一意条件をUNIQUEとして反映。入力必須・255文字以内、更新時は自身除外。前後空白除去・全角半角を区別・英字大小を区別せず重複判定 |
+| `name` | varchar(255) | ○ | UNIQUE。比較・索引の方式は下記 |
 | `created_at` | timestamp | 可（NULL許可） | 作成日時 |
 | `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
@@ -132,7 +132,7 @@ DB::statement('CREATE UNIQUE INDEX genres_name_lower_unique ON genres ((LOWER(na
 | `created_at` | timestamp | 可（NULL許可） | 作成日時 |
 | `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
-`UNIQUE(book_id, genre_id)`。物理名はBook・Genreの単数モデル名をsnake_case・アルファベット順で結んだ `book_genre` とする。BookとGenreの `belongsToMany` ではテーブル名の省略が可能。ジャンル選択は既存IDを1つ以上、重複指定は拒否（Q-04）。
+`UNIQUE(book_id, genre_id)`。物理名はBook・Genreの単数モデル名をsnake_case・アルファベット順で結んだ `book_genre` とする。BookとGenreの `belongsToMany` ではテーブル名の省略が可能。ジャンル選択の入力条件は[screens.md](screens.md#入力チェックとエラーメッセージ)、APIは[入力定義](permissions-api.md#入力定義)を参照する。
 
 ### T5 `reviews`
 
@@ -143,12 +143,12 @@ DB::statement('CREATE UNIQUE INDEX genres_name_lower_unique ON genres ((LOWER(na
 | `id` | bigint unsigned | ○ | PK |
 | `user_id` | bigint unsigned | ○ | FK→`users.id`、ON DELETE CASCADE。投稿者 |
 | `book_id` | bigint unsigned | ○ | FK→`books.id`、ON DELETE CASCADE |
-| `rating` | int | ○ | 評価。入力必須・整数1〜5。DBのCHECK制約は追加しない |
-| `comment` | text | ○ | 入力はQ-04により必須・1,000文字以内。S12 行38でもNOT NULLを明記 |
+| `rating` | int | ○ | 評価。DBのCHECK制約は追加しない |
+| `comment` | text | ○ | コメント。S12 行38でNOT NULLを明記 |
 | `created_at` | timestamp | 可（NULL許可） | 投稿日時。登録日時降順で全件表示 |
 | `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
-`UNIQUE(user_id, book_id)` は設けない。同じユーザーが同じ書籍へ複数投稿できる。本人編集・削除の条件はアプリ側で適用する。
+`UNIQUE(user_id, book_id)` は設けない。同じユーザーが同じ書籍へ複数投稿できる。本人編集・削除の条件は[権限マトリクス](permissions-api.md#権限マトリクス)を参照する。
 
 ### T6 `favorites`
 
@@ -176,7 +176,7 @@ DB::statement('CREATE UNIQUE INDEX genres_name_lower_unique ON genres ((LOWER(na
 | `created_at` | timestamp | 可（NULL許可） | 作成日時 |
 | `updated_at` | timestamp | 可（NULL許可） | 更新日時 |
 
-`UNIQUE(user_id, review_id)`。最新S12の表名・組の一意制約はQ-11と一致する。自分のレビューにもいいねできる。
+`UNIQUE(user_id, review_id)`。最新S12の表名・組の一意制約はQ-11と一致する。操作の認可は[権限マトリクス](permissions-api.md#権限マトリクス)を参照する。
 
 ### 補助：標準の認証補助・管理データ
 
@@ -263,6 +263,6 @@ C=作成、R=参照・存在／一意性検証・本人判定・集計、U=更�
 
 2026-11-19の承認により、DB構成・NULL・日時・採番・比較方式は上記の共通定義へ反映した。既存password_reset_tokens・sessions・cache・jobs系の標準補助テーブルを保持し、新しい認証フローは追加しない。公開設定例のセッション保存先はdatabase、テストではarrayを使用する。既存テーブルの日時精度・NULL条件を維持し、既存データを削除・再作成しない。
 
-books.description・image_urlはNULL許容。POSTの省略・null・空文字はNULL保存、PUTの省略は既存値維持、明示的null・空文字はNULLへ変更する。Webの空欄もNULLへ統一する。後続のWeb／API保存処理で適用し、Issue #1では物理定義を検証する。
+books.description・image_urlのNULL許容は上記の物理定義に従う。APIの省略・null・空文字の扱いは[入力定義](permissions-api.md#入力定義)、Webの空欄は[入力チェック](screens.md#入力チェックとエラーメッセージ)を参照する。Issue #1では物理定義を検証する。
 
 API更新の登録者変更（Q-18）、JSON詳細・検索とページ（Q-22）、保存競合・障害（Q-23）は2026-11-22確認のQA回答をpermissions-api.md・behavior.mdへ反映した。物理定義の追加変更は不要。Q-19の未指定の個別エラー文言のみ保留を維持する。
