@@ -6,6 +6,7 @@ use App\Http\Controllers\GenreController;
 use App\Http\Controllers\PendingFeatureController;
 use App\Http\Controllers\RegisteredUserController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\ReviewLikeController;
 use App\Models\Book;
 use App\Models\Genre;
 use App\Models\Review;
@@ -52,7 +53,7 @@ Route::post('/books/{book}/reviews', [ReviewController::class, 'store'])->middle
 Route::get('/reviews/{review}/edit', [ReviewController::class, 'edit'])->middleware(['auth', 'can:update,review'])->name('reviews.edit');
 Route::put('/reviews/{review}', [ReviewController::class, 'update'])->middleware(['auth', 'can:update,review'])->name('reviews.update');
 Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->middleware(['auth', 'can:delete,review'])->name('reviews.destroy');
-Route::post('/reviews/{review}/like', PendingFeatureController::class)->middleware(['auth'])->name('reviews.like');
+Route::post('/reviews/{review}/like', ReviewLikeController::class)->middleware(['auth'])->name('reviews.like');
 Route::post('/books/{book}/favorites', PendingFeatureController::class)->middleware(['auth'])->name('favorites.toggle');
 Route::get('/favorites', PendingFeatureController::class)->middleware(['auth'])->name('favorites.index');
 Route::get('/ranking', PendingFeatureController::class)->name('ranking.index');

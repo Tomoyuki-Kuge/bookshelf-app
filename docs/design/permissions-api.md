@@ -52,6 +52,10 @@ books.store・edit・update・destroyをBookControllerへ接続し、登録・�
 
 reviews.store・edit・update・destroyをReviewControllerへ接続し、投稿・更新はReviewRequestで検証する。既存の名前・HTTPメソッド・認証とReviewPolicyを維持する。投稿者は認証情報、対象書籍は経路から設定し、更新でも維持する。送信されたuser_id・book_idは信頼しない。判定順序と保存直前の存在・本人再確認、親書籍とレビューの排他はbehavior.mdのIssue #7補足に従う。レビューAPI・独立投稿画面・回数制限は追加しない。
 
+### Issue #8のレビューいいね接続（2026-11-26設計補足）
+
+reviews.likeをReviewLikeControllerへ接続する。既存のPOST `/reviews/{review}/like`・ルート名・authミドルウェアを維持し、認証後に対象レビューを解決する。いいねする利用者は認証情報、対象レビューは経路から決め、送信されたuser_id・review_id・book_idは採用しない。自分・他人のレビューとも操作できるため、ReviewPolicyの本人制限は適用しない。業務入力項目はなく、専用FormRequestは追加しない。成功後は対象書籍のbooks.showへリダイレクトし、成功フラッシュは追加しない。排他・保存失敗は[behavior.mdのIssue #8補足](behavior.md#issue-8のレビューいいね保存競合処理の補足2026-11-26設計補足)に従う。既存Bladeの状態・件数表示を利用し、いいねAPI・独立画面・追加パッケージ・DB定義の変更は行わない。この補足は実装・検証の完了を示さない。
+
 ## Webルーティング一覧
 
 保存後の結果表示は [screens.md](screens.md#操作結果とエラーの扱い)、例外処理はbehavior.md。{book}・{genre}・{review}は主キー。
