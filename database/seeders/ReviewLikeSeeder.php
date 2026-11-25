@@ -14,12 +14,12 @@ class ReviewLikeSeeder extends Seeder
     {
         DB::transaction(function () {
             [$users, $books] = SeedReferences::usersAndBooks(self::class);
-            $patterns = SeedReferences::reviews(self::class, $users, $books);
-            foreach ($patterns as $index => [$author, $reviews]) {
-                $others = array_filter($users, fn ($letter) => $letter !== $author, ARRAY_FILTER_USE_KEY);
-                $ids = array_map(fn ($user) => $user->id, array_slice(array_values($others), 0, $index % 4));
+            $sampleReviewGroups = SeedReferences::reviewsForSamples(self::class, $users, $books);
+            foreach ($sampleReviewGroups as $index => [$reviewAuthorKey, $reviews]) {
+                $eligibleLikers = array_filter($users, fn ($userKey) => $userKey !== $reviewAuthorKey, ARRAY_FILTER_USE_KEY);
+                $likerUserIds = array_map(fn ($user) => $user->id, array_slice(array_values($eligibleLikers), 0, $index % 4));
                 foreach ($reviews as $review) {
-                    $review->likedByUsers()->syncWithoutDetaching($ids);
+                    $review->likedByUsers()->syncWithoutDetaching($likerUserIds);
                 }
             }
         });

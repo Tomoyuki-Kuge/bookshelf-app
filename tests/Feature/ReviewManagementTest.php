@@ -9,8 +9,7 @@ use App\Models\Book;
 use App\Models\Genre;
 use App\Models\Review;
 use App\Models\User;
-use DOMDocument;
-use DOMXPath;
+use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +17,15 @@ use Illuminate\Support\Facades\Gate;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
+use Tests\Concerns\InteractsWithRenderedHtml;
+use Tests\Concerns\ObservesConcurrentSql;
 use Tests\TestCase;
 
 class ReviewManagementTest extends TestCase
 {
+    use InteractsWithRenderedHtml;
+    use ObservesConcurrentSql;
+
     /** testing限定でテスト自身のデータを作成する。 */
     protected function setUp(): void
     {
@@ -57,21 +61,6 @@ class ReviewManagementTest extends TestCase
         return $snapshot;
     }
 
-    /** 欄下文言とフォーム値をDOMから取得する。 */
-    private function xpath($response): DOMXPath
-    {
-        $document = new DOMDocument;
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-
-        return new DOMXPath($document);
-    }
-
     /** T-7-1・2・4・5・8・10 / AC-7-01・02：各成功直後の全項目と対象外不変を照合する。 */
     public function test_post_edit_update_preserve_identity_and_unrelated_data(): void
     {
@@ -98,7 +87,7 @@ class ReviewManagementTest extends TestCase
             $other->likedReviews()->attach($review);
             $before = $this->snapshot();
             $edit = $this->get(route('reviews.edit', $review))->assertOk()->assertSee($book->title)->assertSee(route('books.show', $book), false);
-            $dom = $this->xpath($edit);
+            $dom = $this->createDomXPath($edit);
             $this->assertSame($input['rating'], $dom->query('//input[@name="rating"][@checked]')->item(0)->getAttribute('value'));
             $this->assertSame($input['comment'], $dom->query('//textarea[@name="comment"]')->item(0)->textContent);
             $this->assertSame($before, $this->snapshot());
@@ -169,7 +158,7 @@ class ReviewManagementTest extends TestCase
             $this->assertSame($expected, $this->app['session.store']->getOldInput());
             $response = $this->get($form)->assertOk();
             $this->assertSame([$field => [$message]], $this->app['view']->shared('errors')->getBag('default')->toArray());
-            $dom = $this->xpath($response);
+            $dom = $this->createDomXPath($response);
             $this->assertSame($expected['comment'], $dom->query('//textarea[@name="comment"]')->item(0)->textContent);
             $selected = $dom->query($method === 'POST' ? '//select[@name="rating"]/option[@selected]' : '//input[@name="rating"][@checked]');
             $expectedRating = in_array((string) $expected['rating'], ['1', '2', '3', '4', '5'], true) ? (string) $expected['rating'] : '';
@@ -252,58 +241,67 @@ class ReviewManagementTest extends TestCase
         }
     }
 
+    /** 保存直前に起こる対象消失・投稿者変更と、各操作の応答を列挙する。 */
+    public static function targetChangesBeforeSave(): array
+    {
+        return [
+            '投稿前に親書籍削除' => ['POST', 'book-deleted', 404],
+            '更新前に親書籍削除' => ['PUT', 'book-deleted', 404],
+            '更新前にレビュー削除' => ['PUT', 'review-deleted', 404],
+            '更新前に投稿者変更' => ['PUT', 'owner-changed', 403],
+            '削除前に親書籍削除' => ['DELETE', 'book-deleted', 404],
+            '削除前にレビュー削除' => ['DELETE', 'review-deleted', 404],
+            '削除前に投稿者変更' => ['DELETE', 'owner-changed', 403],
+        ];
+    }
+
     /** T-7-12：保存前の対象消失と投稿者変更を模擬する。 */
-    public function test_deleted_target_or_changed_owner_is_rechecked_before_save(): void
+    #[DataProvider('targetChangesBeforeSave')]
+    public function test_deleted_target_or_changed_owner_is_rechecked_before_save(string $method, string $targetChange, int $expectedStatus): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
         $this->actingAs($owner);
-        foreach (['POST', 'PUT', 'DELETE'] as $method) {
-            foreach (['review', 'book', 'owner'] as $case) {
-                if ($method === 'POST' && $case !== 'book') {
-                    continue;
-                }
-                $book = Book::factory()->create();
-                $review = Review::factory()->for($owner)->for($book)->create();
-                $expected = null;
-                $active = true;
-                $change = function () use ($case, $review, $book, $other, &$expected, &$active) {
-                    if (! $active) {
-                        return;
-                    }
-                    if ($case === 'book') {
-                        DB::table('books')->where('id', $book->id)->delete();
-                    } elseif ($case === 'review') {
-                        DB::table('reviews')->where('id', $review->id)->delete();
-                    } else {
-                        DB::table('reviews')->where('id', $review->id)->update(['user_id' => $other->id]);
-                    }
-                    $expected = $this->snapshot();
-                };
-                $checks = [];
-                if ($method === 'DELETE') {
-                    Gate::after(function ($user, $ability, $result, $arguments) use (&$checks, $change, $review, &$active) {
-                        if ($active && $ability === 'delete' && $arguments[0] instanceof Review && $arguments[0]->id === $review->id) {
-                            $checks[] = $result;
-                            if (count($checks) === 1) {
-                                $change();
-                            }
-                        }
-                    });
-                } else {
-                    $this->app->afterResolving(ReviewRequest::class, $change);
-                }
-                $url = $method === 'POST' ? route('reviews.store', $book) : route('reviews.update', $review);
-                $this->call($method, $url, ['rating' => 5, 'comment' => '保存しない'])->assertStatus($case === 'owner' ? 403 : 404);
-                $this->assertSame($expected, $this->snapshot());
-                if ($case === 'owner' && $method === 'DELETE') {
-                    $this->assertSame([true, false], $checks);
-                }
-                $active = false;
-                unset($active);
-                // 次のケースへ模擬コールバックを持ち越さない。
-                $this->app->forgetInstance(ReviewRequest::class);
+        $book = Book::factory()->create();
+        $review = Review::factory()->for($owner)->for($book)->create();
+        // 各ケースを独立させても、無関係な書籍・レビューの誤変更を全表比較で検出する。
+        $unrelatedBook = Book::factory()->create();
+        Review::factory()->for($other)->for($unrelatedBook)->create();
+        $expectedAfterChange = null;
+        $changeApplied = false;
+        $applyTargetChange = function () use ($targetChange, $review, $book, $other, &$expectedAfterChange, &$changeApplied) {
+            // 同じリクエスト内でフックが再発火しても、模擬変更は一度だけ行う。
+            if ($changeApplied) {
+                return;
             }
+            $changeApplied = true;
+            if ($targetChange === 'book-deleted') {
+                DB::table('books')->where('id', $book->id)->delete();
+            } elseif ($targetChange === 'review-deleted') {
+                DB::table('reviews')->where('id', $review->id)->delete();
+            } else {
+                DB::table('reviews')->where('id', $review->id)->update(['user_id' => $other->id]);
+            }
+            $expectedAfterChange = $this->snapshot();
+        };
+        $authorizationResults = [];
+        if ($method === 'DELETE') {
+            Gate::after(function ($user, $ability, $result, $arguments) use (&$authorizationResults, $applyTargetChange, $review) {
+                if ($ability === 'delete' && $arguments[0] instanceof Review && $arguments[0]->id === $review->id) {
+                    $authorizationResults[] = $result;
+                    if (count($authorizationResults) === 1) {
+                        $applyTargetChange();
+                    }
+                }
+            });
+        } else {
+            $this->app->afterResolving(ReviewRequest::class, $applyTargetChange);
+        }
+        $url = $method === 'POST' ? route('reviews.store', $book) : route('reviews.update', $review);
+        $this->call($method, $url, ['rating' => 5, 'comment' => '保存しない'])->assertStatus($expectedStatus);
+        $this->assertSame($expectedAfterChange, $this->snapshot());
+        if ($targetChange === 'owner-changed' && $method === 'DELETE') {
+            $this->assertSame([true, false], $authorizationResults);
         }
     }
 
@@ -391,7 +389,7 @@ CHILD;
                 $connection->table($case === 'book-delete' ? 'books' : 'reviews')->where('id', $case === 'book-delete' ? $book->id : $review->id)->delete();
             }
             $stream->write("save\n");
-            $this->waitForSql($connection, $process, $case === 'book-delete' ? 'lock in share mode' : 'for update');
+            $this->waitForSqlInProcessList($connection, $process, $case === 'book-delete' ? 'lock in share mode' : 'for update');
             $connection->commit();
             $stream->close();
             $this->assertSame(0, $process->wait(), $process->getErrorOutput());
@@ -434,23 +432,6 @@ Illuminate\Support\Facades\DB::statement('SET SESSION innodb_lock_wait_timeout =
 CHILD;
     }
 
-    /** 固定sleepによる順序の推測を避け、待機SQLを観測する。 */
-    private function waitForSql($connection, Process $process, string $sql): void
-    {
-        $deadline = microtime(true) + 4;
-        do {
-            foreach ($connection->select('SHOW PROCESSLIST') as $thread) {
-                if (str_contains(strtolower($thread->Info ?? ''), $sql)) {
-                    $this->assertTrue(true);
-
-                    return;
-                }
-            }
-            usleep(10000);
-        } while (microtime(true) < $deadline && $process->isRunning());
-        $this->fail('独立プロセスの待機SQLを観測できなかった: '.$process->getOutput().$process->getErrorOutput());
-    }
-
     /** 親共有ロックを保持する各操作を列挙する。 */
     public static function lockingOperations(): array
     {
@@ -464,26 +445,118 @@ CHILD;
         config(['database.connections.review_lock' => config('database.connections.mysql')]);
         $connection = DB::connection('review_lock');
         $this->assertSame('testing', $connection->getDatabaseName());
-        $user = User::factory()->make();
-        $user->setConnection('review_lock')->save();
-        $other = User::factory()->make();
-        $other->setConnection('review_lock')->save();
-        $book = Book::factory()->make(['user_id' => $user->id]);
-        $book->setConnection('review_lock')->save();
-        $review = new Review(['user_id' => $user->id, 'book_id' => $book->id, 'rating' => 2, 'comment' => '共有ロック前']);
-        $review->created_at = $review->updated_at = '2026-01-01 00:00:00';
-        $review->setConnection('review_lock')->save();
-        $otherReview = new Review(['user_id' => $other->id, 'book_id' => $book->id, 'rating' => 3, 'comment' => '別レビュー']);
-        $otherReview->setConnection('review_lock')->save();
-        foreach ([$review, $otherReview] as $liked) {
-            $connection->table('review_likes')->insert(['user_id' => $other->id, 'review_id' => $liked->id, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00']);
-        }
-        $connection->table('favorites')->insert(['user_id' => $other->id, 'book_id' => $book->id, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00']);
+        [
+            'reviewAuthor' => $reviewAuthor,
+            'otherUser' => $otherUser,
+            'book' => $book,
+            'review' => $review,
+            'otherReview' => $otherReview,
+        ] = $this->createSharedLockFixture($connection);
         // 親テストのトランザクションとは独立し、コミット済みの保存値を読む。
-        $capture = fn () => collect(['users', 'books', 'genres', 'book_genre', 'reviews', 'favorites', 'review_likes'])->mapWithKeys(fn ($table) => [$table => $connection->table($table)->orderBy('id')->get()->toJson()])->all();
-        $before = $capture();
-        $original = (array) $connection->table('reviews')->where('id', $review->id)->first();
-        $saveScript = $this->childBootstrap().<<<'CHILD'
+        $captureCommittedSnapshot = fn () => collect(['users', 'books', 'genres', 'book_genre', 'reviews', 'favorites', 'review_likes'])->mapWithKeys(fn ($table) => [$table => $connection->table($table)->orderBy('id')->get()->toJson()])->all();
+        $beforeOperation = $captureCommittedSnapshot();
+        $originalReview = (array) $connection->table('reviews')->where('id', $review->id)->first();
+        $saveScript = $this->reviewOperationHoldingParentLockScript();
+        $deleteScript = $this->bookDeletionAfterParentLockScript();
+        $reviewInput = new InputStream;
+        $bookDeletionInput = new InputStream;
+        $reviewOperation = new Process([PHP_BINARY, '-r', $saveScript, (string) $review->id, $method, (string) $otherUser->id], base_path(), ['APP_ENV' => 'testing'], $reviewInput, 12);
+        $bookDeletion = new Process([PHP_BINARY, '-r', $deleteScript, (string) $book->id], base_path(), ['APP_ENV' => 'testing'], $bookDeletionInput, 12);
+        try {
+            $reviewOperation->start();
+            $this->assertTrue($reviewOperation->waitUntil(fn ($type, $output) => str_contains($output, "locked\n")), $reviewOperation->getErrorOutput());
+            $bookDeletion->start();
+            $this->waitForSqlInProcessList($connection, $bookDeletion, 'for update');
+            $this->assertTrue($reviewOperation->isRunning());
+            $this->assertTrue($bookDeletion->isRunning());
+            $reviewInput->write("commit\n");
+            $reviewInput->close();
+            $this->assertSame(0, $reviewOperation->wait(), $reviewOperation->getErrorOutput());
+            $lines = explode("\n", trim($reviewOperation->getOutput()));
+            $reviewResponse = json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
+            $expectedSuccessMessage = match ($method) {
+                'POST' => 'レビューを登録しました。',
+                'PUT' => 'レビューを更新しました。',
+                'DELETE' => 'レビューを削除しました。',
+            };
+            $this->assertSame(['status' => 302, 'location' => route('books.show', $book), 'success' => $expectedSuccessMessage, 'errors' => []], $reviewResponse);
+            // 書籍ロック取得後・実削除前で止め、最終CASCADEに隠されるレビュー操作も検証する。
+            $this->assertTrue($bookDeletion->waitUntil(fn ($type, $output) => str_contains($output, "before-delete\n")), $bookDeletion->getErrorOutput());
+            $this->assertTrue($bookDeletion->isRunning());
+            $this->assertTrue($connection->table('books')->where('id', $book->id)->exists());
+            $afterOperation = $captureCommittedSnapshot();
+            if ($method === 'POST') {
+                $createdReviews = $connection->table('reviews')->where('book_id', $book->id)->whereNotIn('id', [$review->id, $otherReview->id])->get();
+                $this->assertCount(1, $createdReviews);
+                $savedReview = (array) $createdReviews->first();
+                $this->assertSame(['id' => $savedReview['id'], 'user_id' => $reviewAuthor->id, 'book_id' => $book->id, 'rating' => 5, 'comment' => '共有ロック保存', 'created_at' => '2030-01-02 03:04:05', 'updated_at' => '2030-01-02 03:04:05'], $savedReview);
+                $this->assertSame($this->unrelated($beforeOperation, $savedReview['id']), $this->unrelated($afterOperation, $savedReview['id']));
+            } elseif ($method === 'PUT') {
+                $this->assertSame(array_replace($originalReview, ['rating' => 5, 'comment' => '共有ロック保存', 'updated_at' => '2030-01-02 03:04:05']), (array) $connection->table('reviews')->where('id', $review->id)->first());
+                $this->assertSame($this->unrelated($beforeOperation, $review->id), $this->unrelated($afterOperation, $review->id));
+            } else {
+                $this->assertFalse($connection->table('reviews')->where('id', $review->id)->exists());
+                $this->assertFalse($connection->table('review_likes')->where('review_id', $review->id)->exists());
+                $this->assertSame($this->unrelated($beforeOperation, $review->id, true), $this->unrelated($afterOperation, $review->id, true));
+            }
+            $bookDeletionInput->write("delete\n");
+            $bookDeletionInput->close();
+            $this->assertSame(0, $bookDeletion->wait(), $bookDeletion->getErrorOutput());
+            $lines = explode("\n", trim($bookDeletion->getOutput()));
+            $this->assertSame(['status' => 302, 'location' => route('books.index'), 'success' => '書籍を削除しました。', 'errors' => []], json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR));
+            $this->assertFalse($connection->table('books')->where('id', $book->id)->exists());
+            $this->assertSame(0, $connection->table('reviews')->where('book_id', $book->id)->count());
+            $this->assertSame(0, $connection->table('review_likes')->whereIn('review_id', [$review->id, $otherReview->id])->count());
+            $this->assertSame(0, $connection->table('favorites')->where('book_id', $book->id)->count());
+        } finally {
+            foreach ([$reviewOperation, $bookDeletion] as $process) {
+                if ($process->isRunning()) {
+                    $process->stop(0);
+                }
+            }
+            $reviewInput->close();
+            $bookDeletionInput->close();
+            $connection->table('users')->whereIn('id', [$reviewAuthor->id, $otherUser->id])->delete();
+            DB::purge('review_lock');
+        }
+    }
+
+    /**
+     * 独立接続で親書籍・対象と別のレビュー・関連行をコミット済みデータとして用意する。
+     *
+     * @return array{reviewAuthor: User, otherUser: User, book: Book, review: Review, otherReview: Review}
+     */
+    private function createSharedLockFixture(Connection $connection): array
+    {
+        $reviewAuthor = User::factory()->make();
+        $reviewAuthor->setConnection($connection->getName())->save();
+        $otherUser = User::factory()->make();
+        $otherUser->setConnection($connection->getName())->save();
+        $book = Book::factory()->make(['user_id' => $reviewAuthor->id]);
+        $book->setConnection($connection->getName())->save();
+        $review = new Review(['user_id' => $reviewAuthor->id, 'book_id' => $book->id, 'rating' => 2, 'comment' => '共有ロック前']);
+        $review->created_at = $review->updated_at = '2026-01-01 00:00:00';
+        $review->setConnection($connection->getName())->save();
+        $otherReview = new Review(['user_id' => $otherUser->id, 'book_id' => $book->id, 'rating' => 3, 'comment' => '別レビュー']);
+        $otherReview->setConnection($connection->getName())->save();
+        foreach ([$review, $otherReview] as $likedReview) {
+            $connection->table('review_likes')->insert(['user_id' => $otherUser->id, 'review_id' => $likedReview->id, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00']);
+        }
+        $connection->table('favorites')->insert(['user_id' => $otherUser->id, 'book_id' => $book->id, 'created_at' => '2026-01-01 00:00:00', 'updated_at' => '2026-01-01 00:00:00']);
+
+        return [
+            'reviewAuthor' => $reviewAuthor,
+            'otherUser' => $otherUser,
+            'book' => $book,
+            'review' => $review,
+            'otherReview' => $otherReview,
+        ];
+    }
+
+    /** 親共有ロックを保持したまま、レビュー操作のコミット指示を待つ子処理を作る。 */
+    private function reviewOperationHoldingParentLockScript(): string
+    {
+        return $this->childBootstrap().<<<'CHILD'
 $review = App\Models\Review::findOrFail($argv[1]);
 Illuminate\Support\Facades\Auth::guard()->setUser(App\Models\User::findOrFail($review->user_id));
 Illuminate\Support\Carbon::setTestNow('2030-01-02 03:04:05');
@@ -498,7 +571,12 @@ $response = $app->make(Illuminate\Contracts\Http\Kernel::class)->handle($request
 session()->start();
 echo json_encode(['status' => $response->getStatusCode(), 'location' => $response->headers->get('Location'), 'success' => session('success'), 'errors' => session('errors')?->toArray() ?? []], JSON_UNESCAPED_UNICODE)."\n";
 CHILD;
-        $deleteScript = $this->childBootstrap().<<<'CHILD'
+    }
+
+    /** 書籍ロック取得後に停止し、実削除の指示を待つ子処理を作る。 */
+    private function bookDeletionAfterParentLockScript(): string
+    {
+        return $this->childBootstrap().<<<'CHILD'
 $book = App\Models\Book::findOrFail($argv[1]);
 Illuminate\Support\Facades\Auth::guard()->setUser(App\Models\User::findOrFail($book->user_id));
 App\Models\Book::deleting(function () {
@@ -510,66 +588,5 @@ $response = $app->make(Illuminate\Contracts\Http\Kernel::class)->handle($request
 session()->start();
 echo json_encode(['status' => $response->getStatusCode(), 'location' => $response->headers->get('Location'), 'success' => session('success'), 'errors' => session('errors')?->toArray() ?? []], JSON_UNESCAPED_UNICODE)."\n";
 CHILD;
-        $stream = new InputStream;
-        $deleteStream = new InputStream;
-        $save = new Process([PHP_BINARY, '-r', $saveScript, (string) $review->id, $method, (string) $other->id], base_path(), ['APP_ENV' => 'testing'], $stream, 12);
-        $delete = new Process([PHP_BINARY, '-r', $deleteScript, (string) $book->id], base_path(), ['APP_ENV' => 'testing'], $deleteStream, 12);
-        try {
-            $save->start();
-            $this->assertTrue($save->waitUntil(fn ($type, $output) => str_contains($output, "locked\n")), $save->getErrorOutput());
-            $delete->start();
-            $this->waitForSql($connection, $delete, 'for update');
-            $this->assertTrue($save->isRunning());
-            $this->assertTrue($delete->isRunning());
-            $stream->write("commit\n");
-            $stream->close();
-            $this->assertSame(0, $save->wait(), $save->getErrorOutput());
-            $lines = explode("\n", trim($save->getOutput()));
-            $result = json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR);
-            $flash = match ($method) {
-                'POST' => 'レビューを登録しました。',
-                'PUT' => 'レビューを更新しました。',
-                'DELETE' => 'レビューを削除しました。',
-            };
-            $this->assertSame(['status' => 302, 'location' => route('books.show', $book), 'success' => $flash, 'errors' => []], $result);
-            // 書籍ロック取得後・実削除前で止め、最終CASCADEに隠されるレビュー操作も検証する。
-            $this->assertTrue($delete->waitUntil(fn ($type, $output) => str_contains($output, "before-delete\n")), $delete->getErrorOutput());
-            $this->assertTrue($delete->isRunning());
-            $this->assertTrue($connection->table('books')->where('id', $book->id)->exists());
-            $after = $capture();
-            if ($method === 'POST') {
-                $created = $connection->table('reviews')->where('book_id', $book->id)->whereNotIn('id', [$review->id, $otherReview->id])->get();
-                $this->assertCount(1, $created);
-                $saved = (array) $created->first();
-                $this->assertSame(['id' => $saved['id'], 'user_id' => $user->id, 'book_id' => $book->id, 'rating' => 5, 'comment' => '共有ロック保存', 'created_at' => '2030-01-02 03:04:05', 'updated_at' => '2030-01-02 03:04:05'], $saved);
-                $this->assertSame($this->unrelated($before, $saved['id']), $this->unrelated($after, $saved['id']));
-            } elseif ($method === 'PUT') {
-                $this->assertSame(array_replace($original, ['rating' => 5, 'comment' => '共有ロック保存', 'updated_at' => '2030-01-02 03:04:05']), (array) $connection->table('reviews')->where('id', $review->id)->first());
-                $this->assertSame($this->unrelated($before, $review->id), $this->unrelated($after, $review->id));
-            } else {
-                $this->assertFalse($connection->table('reviews')->where('id', $review->id)->exists());
-                $this->assertFalse($connection->table('review_likes')->where('review_id', $review->id)->exists());
-                $this->assertSame($this->unrelated($before, $review->id, true), $this->unrelated($after, $review->id, true));
-            }
-            $deleteStream->write("delete\n");
-            $deleteStream->close();
-            $this->assertSame(0, $delete->wait(), $delete->getErrorOutput());
-            $lines = explode("\n", trim($delete->getOutput()));
-            $this->assertSame(['status' => 302, 'location' => route('books.index'), 'success' => '書籍を削除しました。', 'errors' => []], json_decode(end($lines), true, flags: JSON_THROW_ON_ERROR));
-            $this->assertFalse($connection->table('books')->where('id', $book->id)->exists());
-            $this->assertSame(0, $connection->table('reviews')->where('book_id', $book->id)->count());
-            $this->assertSame(0, $connection->table('review_likes')->whereIn('review_id', [$review->id, $otherReview->id])->count());
-            $this->assertSame(0, $connection->table('favorites')->where('book_id', $book->id)->count());
-        } finally {
-            foreach ([$save, $delete] as $process) {
-                if ($process->isRunning()) {
-                    $process->stop(0);
-                }
-            }
-            $stream->close();
-            $deleteStream->close();
-            $connection->table('users')->whereIn('id', [$user->id, $other->id])->delete();
-            DB::purge('review_lock');
-        }
     }
 }

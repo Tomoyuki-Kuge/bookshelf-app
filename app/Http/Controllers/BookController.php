@@ -79,39 +79,45 @@ class BookController extends Controller
     private function saveBook(BookRequest $request, ?Book $book = null): RedirectResponse
     {
         try {
-            $saved = DB::transaction(function () use ($request, $book) {
-                $current = $book ? Book::whereKey($book->id)->lockForUpdate()->firstOrFail() : new Book;
-                if ($book) {
-                    $this->authorize('update', $current);
-                } else {
-                    $current->user_id = $request->user()->id;
-                }
-                $ids = $request->validated('genres');
-                // 選択先を共有ロックし、確認後の削除による部分保存も防ぐ。
-                if (Genre::whereKey($ids)->sharedLock()->get(['id'])->count() !== count($ids)) {
-                    throw ValidationException::withMessages(['genres' => BookRequest::missingGenreMessage()]);
-                }
-                $attributes = $request->safe()->except('genres');
-                $attributes['published_date'] = Carbon::parse($attributes['published_date'])->format('Y-m-d');
-                $current->fill($attributes);
-                $current->save();
-                $current->genres()->sync($ids);
-
-                return $current;
-            });
+            $savedBook = $this->persistBookWithGenres($request, $book);
         } catch (ValidationException $exception) {
             return $request->invalidResponse($exception->errors());
         } catch (QueryException $exception) {
-            $detail = $exception->errorInfo[2] ?? '';
-            if (($exception->errorInfo[1] ?? null) === 1062 && preg_match('/[\x27`](?:books\.)?books_isbn_unique[\x27`]/', $detail)) {
+            $databaseErrorMessage = $exception->errorInfo[2] ?? '';
+            if (($exception->errorInfo[1] ?? null) === 1062 && preg_match('/[\x27`](?:books\.)?books_isbn_unique[\x27`]/', $databaseErrorMessage)) {
                 return $request->invalidResponse(['isbn' => BookRequest::duplicateMessage()]);
             }
-            if (($exception->errorInfo[1] ?? null) === 1452 && str_contains($detail, 'book_genre_genre_id_foreign')) {
+            if (($exception->errorInfo[1] ?? null) === 1452 && str_contains($databaseErrorMessage, 'book_genre_genre_id_foreign')) {
                 return $request->invalidResponse(['genres' => BookRequest::missingGenreMessage()]);
             }
             throw $exception;
         }
 
-        return redirect()->route('books.show', $saved)->with('success', $book ? '書籍情報を更新しました。' : '書籍を登録しました。');
+        return redirect()->route('books.show', $savedBook)->with('success', $book ? '書籍情報を更新しました。' : '書籍を登録しました。');
+    }
+
+    /** 対象と選択ジャンルを再確認し、本体と紐付けを一括保存する。 */
+    private function persistBookWithGenres(BookRequest $request, ?Book $book): Book
+    {
+        return DB::transaction(function () use ($request, $book) {
+            $bookToSave = $book ? Book::whereKey($book->id)->lockForUpdate()->firstOrFail() : new Book;
+            if ($book) {
+                $this->authorize('update', $bookToSave);
+            } else {
+                $bookToSave->user_id = $request->user()->id;
+            }
+            $genreIds = $request->validated('genres');
+            // 選択先を共有ロックし、確認後の削除による部分保存も防ぐ。
+            if (Genre::whereKey($genreIds)->sharedLock()->get(['id'])->count() !== count($genreIds)) {
+                throw ValidationException::withMessages(['genres' => BookRequest::missingGenreMessage()]);
+            }
+            $attributes = $request->safe()->except('genres');
+            $attributes['published_date'] = Carbon::parse($attributes['published_date'])->format('Y-m-d');
+            $bookToSave->fill($attributes);
+            $bookToSave->save();
+            $bookToSave->genres()->sync($genreIds);
+
+            return $bookToSave;
+        });
     }
 }

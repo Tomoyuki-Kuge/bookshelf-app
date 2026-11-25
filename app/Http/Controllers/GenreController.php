@@ -43,7 +43,7 @@ class GenreController extends Controller
         try {
             Genre::create($request->safe()->only('name'));
         } catch (QueryException $exception) {
-            return $this->duplicateOrThrow($request, $exception);
+            return $this->redirectForDuplicateNameOrThrow($request, $exception);
         }
 
         return redirect()->route('genres.index')->with('success', 'ジャンルを登録しました。');
@@ -58,7 +58,7 @@ class GenreController extends Controller
                 $current->update($request->safe()->only('name'));
             });
         } catch (QueryException $exception) {
-            return $this->duplicateOrThrow($request, $exception);
+            return $this->redirectForDuplicateNameOrThrow($request, $exception);
         }
 
         return redirect()->route('genres.index')->with('success', 'ジャンルを更新しました。');
@@ -85,7 +85,7 @@ class GenreController extends Controller
     }
 
     /** ジャンル名の既知の一意索引違反だけを重複入力として扱う。 */
-    private function duplicateOrThrow(GenreRequest $request, QueryException $exception): RedirectResponse
+    private function redirectForDuplicateNameOrThrow(GenreRequest $request, QueryException $exception): RedirectResponse
     {
         if (($exception->errorInfo[1] ?? null) !== 1062 || ! preg_match('/[\x27`](?:genres\.)?genres_name_(?:lower_)?unique[\x27`]/', $exception->errorInfo[2] ?? '')) {
             throw $exception;

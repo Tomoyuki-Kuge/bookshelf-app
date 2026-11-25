@@ -9,8 +9,6 @@ use App\Models\Book;
 use App\Models\Genre;
 use App\Models\Review;
 use App\Models\User;
-use DOMDocument;
-use DOMXPath;
 use Illuminate\Database\QueryException;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Artisan;
@@ -21,10 +19,15 @@ use Illuminate\Support\Facades\Route;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
+use Tests\Concerns\InteractsWithRenderedHtml;
+use Tests\Concerns\ObservesConcurrentSql;
 use Tests\TestCase;
 
 class BookManagementTest extends TestCase
 {
+    use InteractsWithRenderedHtml;
+    use ObservesConcurrentSql;
+
     /** testingだけで実行し、各テストの変更を取り消す。 */
     protected function setUp(): void
     {
@@ -54,21 +57,6 @@ class BookManagementTest extends TestCase
     private function snapshot(): array
     {
         return collect(['users', 'books', 'genres', 'book_genre', 'reviews', 'favorites', 'review_likes'])->mapWithKeys(fn ($table) => [$table => DB::table($table)->orderBy('id')->get()->toJson()])->all();
-    }
-
-    /** 描画された入力と欄下エラーをDOMで調べる。 */
-    private function xpath($response): DOMXPath
-    {
-        $document = new DOMDocument;
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-
-        return new DOMXPath($document);
     }
 
     /** 全入力項目とジャンル集合を保存直後にDBから照合する。 */
@@ -114,7 +102,7 @@ class BookManagementTest extends TestCase
         $unrelatedReview = Review::factory()->for($unrelated)->for($owner)->create();
         $owner->favoriteBooks()->attach($unrelated);
         $other->likedReviews()->attach($unrelatedReview);
-        $form = $this->xpath($this->get(route('books.create'))->assertOk());
+        $form = $this->createDomXPath($this->get(route('books.create'))->assertOk());
         $this->assertSame('', $form->query('//input[@name="title"]')->item(0)->getAttribute('value'));
         $this->assertSame(0, $form->query('//input[@checked]')->length);
         $beforeCreate = $this->snapshot();
@@ -128,8 +116,8 @@ class BookManagementTest extends TestCase
         $owner->likedReviews()->attach($review);
         $before = $this->snapshot();
         $edit = $this->get(route('books.edit', $book))->assertOk();
-        $this->assertSame('2099-01-02', $this->xpath($edit)->query('//input[@name="published_date"]')->item(0)->getAttribute('value'));
-        $this->assertSame(2, $this->xpath($edit)->query('//input[@checked]')->length);
+        $this->assertSame('2099-01-02', $this->createDomXPath($edit)->query('//input[@name="published_date"]')->item(0)->getAttribute('value'));
+        $this->assertSame(2, $this->createDomXPath($edit)->query('//input[@checked]')->length);
         $this->assertSame($before, $this->snapshot());
         foreach ([[$extra->id], [$extra->id, $third->id], [$third->id]] as $index => $ids) {
             $input = array_replace($input, ['title' => '更新済み'.$index, 'author' => '変更著者'.$index, 'isbn' => '112345678901'.$index,
@@ -260,7 +248,7 @@ class BookManagementTest extends TestCase
             $response = $this->get($form)->assertOk();
             $actualErrors = $this->app['view']->shared('errors')->getBag('default')->toArray();
             $this->assertSame($errors, $actualErrors);
-            $dom = $this->xpath($response);
+            $dom = $this->createDomXPath($response);
             foreach (['title', 'author', 'isbn', 'published_date', 'description', 'image_url'] as $name) {
                 $node = $dom->query('//*[@name="'.$name.'"]')->item(0);
                 $this->assertSame($expectedOld[$name], $name === 'description' ? $node->textContent : $node->getAttribute('value'), $name.'の旧入力');
@@ -308,7 +296,7 @@ class BookManagementTest extends TestCase
             $this->call($method, $url, array_replace($input, ['genres' => [$input['genres'][0], $input['genres'][0]]]))->assertSessionHasErrors('genres.0');
             unset($input['genres']);
             $this->call($method, $url, array_replace($input, ['title' => '']))->assertRedirect($form);
-            $dom = $this->xpath($this->get($form)->assertOk());
+            $dom = $this->createDomXPath($this->get($form)->assertOk());
             $this->assertSame('', $dom->query('//input[@name="title"]')->item(0)->getAttribute('value'));
             $this->assertSame(0, $dom->query('//input[@checked]')->length);
             $this->assertStringContainsString('タイトルは必須です。', $dom->document->textContent);
@@ -494,7 +482,7 @@ CHILD;
             }
             $stream->write("save\n");
             if ($case !== 'genre') {
-                $this->waitForSql($connection, $process, $case === 'isbn' ? 'update `books`' : 'for update');
+                $this->waitForSqlInProcessList($connection, $process, $case === 'isbn' ? 'update `books`' : 'for update');
                 $connection->commit();
             }
             $stream->close();
@@ -526,23 +514,6 @@ CHILD;
             $connection->table('genres')->where('id', $genre->id)->delete();
             DB::purge('book_race');
         }
-    }
-
-    /** 固定sleepで順序を仮定せず、実際の待機SQLを観測する。 */
-    private function waitForSql($connection, Process $process, string $sql): void
-    {
-        $deadline = microtime(true) + 4;
-        do {
-            foreach ($connection->select('SHOW PROCESSLIST') as $thread) {
-                if (str_contains(strtolower($thread->Info ?? ''), $sql)) {
-                    $this->assertTrue(true);
-
-                    return;
-                }
-            }
-            usleep(10000);
-        } while (microtime(true) < $deadline && $process->isRunning());
-        $this->fail('競合する独立プロセスのSQLを観測できなかった: '.$process->getOutput().$process->getErrorOutput());
     }
 
     /** デバッグ設定・応答形式・障害種別の組合せを返す。 */
@@ -645,7 +616,7 @@ CHILD;
             $save->start();
             $this->assertTrue($save->waitUntil(fn ($type, $output) => str_contains($output, "locked\n")), $save->getErrorOutput());
             $delete->start();
-            $this->waitForSql($connection, $delete, 'delete from `genres`');
+            $this->waitForSqlInProcessList($connection, $delete, 'delete from `genres`');
             $stream->write("commit\n");
             $stream->close();
             $this->assertSame(0, $save->wait(), $save->getErrorOutput());
@@ -750,7 +721,7 @@ CHILD;
         }
         $this->put(route('books.update', $book), $input)->assertRedirect(route('books.show', $book));
         $this->assertSavedInput($book, $input, $owner->id);
-        $form = $this->xpath($this->get(route('books.edit', $book))->assertOk());
+        $form = $this->createDomXPath($this->get(route('books.edit', $book))->assertOk());
         foreach (['description', 'image_url'] as $field) {
             $node = $form->query('//*[@name="'.$field.'"]')->item(0);
             $this->assertSame($input[$field], $field === 'description' ? $node->textContent : $node->getAttribute('value'));

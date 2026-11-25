@@ -29,9 +29,9 @@ final class SeedReferences
             $users[chr(65 + $index)] = $user;
         }
         $books = [];
-        foreach (BookSeeder::BOOKS as $index => $data) {
-            $book = Book::where('isbn', $data[2])->first();
-            self::require($book !== null, $seeder, '書籍ISBN '.$data[2]);
+        foreach (BookSeeder::BOOKS as $index => [, , $isbn]) {
+            $book = Book::where('isbn', $isbn)->first();
+            self::require($book !== null, $seeder, '書籍ISBN '.$isbn);
             $books[$index + 1] = $book;
         }
 
@@ -39,18 +39,18 @@ final class SeedReferences
     }
 
     /** 同じサンプルを再投入したレビューも含め、全32パターンを先に検査する。 */
-    public static function reviews(string $seeder, array $users, array $books): array
+    public static function reviewsForSamples(string $seeder, array $users, array $books): array
     {
-        $patterns = [];
-        foreach (ReviewSeeder::REVIEWS as $index => [$number, $letter, $rating, $comment]) {
-            $reviews = Review::where('book_id', $books[$number]->id)->where('user_id', $users[$letter]->id)
+        $sampleReviewGroups = [];
+        foreach (ReviewSeeder::REVIEWS as $index => [$bookNumber, $reviewAuthorKey, $rating, $comment]) {
+            $reviews = Review::where('book_id', $books[$bookNumber]->id)->where('user_id', $users[$reviewAuthorKey]->id)
                 ->where('rating', $rating)->where('comment', $comment)->get()
                 // DBの照合順序で同値となる別本文をサンプルとして扱わない。
                 ->filter(fn ($review) => $review->comment === $comment);
             self::require($reviews->isNotEmpty(), $seeder, 'レビューサンプル行 '.($index + 1));
-            $patterns[] = [$letter, $reviews];
+            $sampleReviewGroups[] = [$reviewAuthorKey, $reviews];
         }
 
-        return $patterns;
+        return $sampleReviewGroups;
     }
 }

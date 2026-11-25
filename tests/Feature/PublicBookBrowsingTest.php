@@ -8,19 +8,20 @@ use App\Models\Book;
 use App\Models\Genre;
 use App\Models\Review;
 use App\Models\User;
-use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
-use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\InteractsWithRenderedHtml;
 use Tests\TestCase;
 
 class PublicBookBrowsingTest extends TestCase
 {
+    use InteractsWithRenderedHtml;
+
     /** testingを確認して通常migrationとトランザクションで独立したデータを用意する。 */
     protected function setUp(): void
     {
@@ -57,7 +58,7 @@ class PublicBookBrowsingTest extends TestCase
             $this->assertSame($count, $page->total());
             $this->assertSame(count($ids), $page->count());
             $this->assertSame(10, $page->perPage());
-            $xpath = $this->xpath($response);
+            $xpath = $this->createDomXPath($response);
             $links = $xpath->query('//a[contains(@class,"cursor-pointer")]/@href');
             $this->assertSame(array_map(fn ($id) => route('books.show', $id), $ids),
                 array_map(fn ($node) => $node->nodeValue, iterator_to_array($links)));
@@ -93,7 +94,7 @@ class PublicBookBrowsingTest extends TestCase
         foreach ($genres as $genre) {
             $response->assertSee($genre->name);
         }
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $card = $this->card($xpath, $book);
         $this->assertSame($book->title, $xpath->query('.//img', $card)->item(0)->getAttribute('alt'));
         $this->assertSame($book->image_url, $xpath->query('.//img', $card)->item(0)->getAttribute('src'));
@@ -117,7 +118,7 @@ class PublicBookBrowsingTest extends TestCase
         foreach ($ratings as $rating) {
             Review::factory()->for($book)->create(['rating' => $rating]);
         }
-        $xpath = $this->xpath($this->get('/')->assertOk());
+        $xpath = $this->createDomXPath($this->get('/')->assertOk());
         $card = $this->card($xpath, $book);
         $this->assertStringContainsString('('.$average.')', $card->textContent);
         $this->assertSame($stars, preg_replace('/\s+/u', '', $xpath->query('.//span[contains(@class,"text-yellow-500")]', $card)->item(0)->textContent));
@@ -137,7 +138,7 @@ class PublicBookBrowsingTest extends TestCase
             $response->assertSee($text);
         }
         $this->assertSame('2024-02-29', $response['book']->published_date);
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $image = $xpath->query('//img[@src="https://example.com/detail.jpg"]')->item(0);
         $this->assertNotNull($image);
         $this->assertSame($book->title, $image->getAttribute('alt'));
@@ -176,7 +177,7 @@ class PublicBookBrowsingTest extends TestCase
         $response = $this->get(route('books.show', $book))->assertOk();
         $this->assertSame(array_column($expected, 'id'), $response['book']->reviews->pluck('id')->all());
         $response->assertSeeInOrder(array_column($expected, 'comment'))->assertDontSee($foreign->comment);
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $rows = $xpath->query('//div[contains(@class,"space-y-4")]/div');
         $this->assertSame(12, $rows->length);
         foreach ($expected as $index => $fixture) {
@@ -206,7 +207,7 @@ class PublicBookBrowsingTest extends TestCase
         $review = Review::factory()->for($book)->create();
         $response = $this->get(route('books.show', $book))->assertOk()
             ->assertSee('レビューを投稿するには')->assertSee('お気に入りに追加するにはログインしてください')->assertSee('いいね (0)');
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $this->assertGreaterThanOrEqual(3, $xpath->query('//a[@href="'.route('login').'"]')->length);
         foreach (['reviews.store' => $book, 'favorites.toggle' => $book, 'reviews.like' => $review, 'books.destroy' => $book, 'reviews.destroy' => $review] as $route => $model) {
             $this->assertSame(0, $xpath->query('//form[@action="'.route($route, $model).'"]')->length);
@@ -235,7 +236,7 @@ class PublicBookBrowsingTest extends TestCase
         $users['owner']->likedReviews()->attach($ownReview);
         $users['reviewer']->likedReviews()->attach([$ownReview->id, $otherReview->id]);
         $response = $this->actingAs($users[$role])->get(route('books.show', $book))->assertOk();
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $this->assertSame($role === 'owner' ? 1 : 0, $xpath->query('//a[@href="'.route('books.edit', $book).'"]')->length);
         $this->assertSame($role === 'owner' ? 1 : 0, $xpath->query('//form[@action="'.route('books.destroy', $book).'"]')->length);
         foreach ([$ownReview, $otherReview] as $review) {
@@ -268,7 +269,7 @@ class PublicBookBrowsingTest extends TestCase
         // JSONセッションを一度保存し、実際の次リクエストと同じ形式でエラーバッグを復元する。
         session()->save();
         $response = $this->get(route('books.show', $book))->assertOk()->assertSee('詳細フラッシュの表示確認');
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $this->assertSame('2', $xpath->query('//select[@name="rating"]/option[@selected]')->item(0)->getAttribute('value'));
         $this->assertSame('再表示するコメント', $xpath->query('//textarea[@name="comment"]')->item(0)->textContent);
         foreach (['rating' => '評価の表示確認用エラー', 'comment' => 'コメントの表示確認用エラー'] as $field => $message) {
@@ -308,21 +309,6 @@ class PublicBookBrowsingTest extends TestCase
             $this->assertSame($before, $book->fresh()->getAttributes());
         }
         $this->get(route('books.show', $book))->assertOk()->assertSee($book->title);
-    }
-
-    /** 描画されたHTMLをDOMとして解析し、フォーム・カード単位で比較する。 */
-    private function xpath(TestResponse $response): DOMXPath
-    {
-        $document = new DOMDocument;
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-
-        return new DOMXPath($document);
     }
 
     /** 詳細リンクで対象カードを特定する。 */

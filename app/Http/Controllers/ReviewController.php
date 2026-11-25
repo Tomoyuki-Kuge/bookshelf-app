@@ -40,9 +40,9 @@ class ReviewController extends Controller
     {
         DB::transaction(function () use ($request, $review) {
             Book::whereKey($review->book_id)->sharedLock()->firstOrFail();
-            $current = Review::whereKey($review->id)->lockForUpdate()->firstOrFail();
-            $this->authorize('update', $current);
-            $current->fill($request->validated())->save();
+            $lockedReview = Review::whereKey($review->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('update', $lockedReview);
+            $lockedReview->fill($request->validated())->save();
         });
 
         return redirect()->route('books.show', $review->book_id)->with('success', 'レビューを更新しました。');
@@ -53,9 +53,9 @@ class ReviewController extends Controller
     {
         DB::transaction(function () use ($review) {
             Book::whereKey($review->book_id)->sharedLock()->firstOrFail();
-            $current = Review::whereKey($review->id)->lockForUpdate()->firstOrFail();
-            $this->authorize('delete', $current);
-            $current->delete();
+            $lockedReview = Review::whereKey($review->id)->lockForUpdate()->firstOrFail();
+            $this->authorize('delete', $lockedReview);
+            $lockedReview->delete();
         });
 
         return redirect()->route('books.show', $review->book_id)->with('success', 'レビューを削除しました。');

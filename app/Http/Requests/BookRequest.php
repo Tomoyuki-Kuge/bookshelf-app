@@ -84,16 +84,26 @@ class BookRequest extends FormRequest
         throw new HttpResponseException($this->invalidResponse($validator->errors()->toArray()));
     }
 
-    /** 不正型や秘密情報を旧入力へ残さず、チェック欄には一次元配列だけを戻す。 */
+    /** 安全な旧入力と欄下エラーを元フォームへ戻す。 */
     public function invalidResponse(array $errors): RedirectResponse
+    {
+        $book = $this->route('book');
+
+        return redirect()->route($book ? 'books.edit' : 'books.create', $book ? [$book] : [])->withErrors($errors)->withInput($this->oldInputForRedirect());
+    }
+
+    /** 不正型や秘密情報を旧入力へ残さず、チェック欄には一次元配列だけを戻す。 */
+    private function oldInputForRedirect(): array
     {
         $input = [];
         foreach (['title', 'author', 'isbn', 'published_date', 'description', 'image_url'] as $field) {
             $input[$field] = is_string($this->input($field)) ? $this->input($field) : '';
         }
-        $input['genres'] = is_array($this->input('genres')) ? array_values(array_filter($this->input('genres'), fn ($id) => is_int($id) || is_string($id))) : [];
-        $book = $this->route('book');
+        $genreInput = $this->input('genres');
+        $input['genres'] = is_array($genreInput)
+            ? array_values(array_filter($genreInput, fn ($genreId) => is_int($genreId) || is_string($genreId)))
+            : [];
 
-        return redirect()->route($book ? 'books.edit' : 'books.create', $book ? [$book] : [])->withErrors($errors)->withInput($input);
+        return $input;
     }
 }

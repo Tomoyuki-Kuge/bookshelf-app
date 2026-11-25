@@ -8,19 +8,19 @@ use App\Http\Requests\GenreRequest;
 use App\Models\Book;
 use App\Models\Genre;
 use App\Models\User;
-use DOMDocument;
-use DOMXPath;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
+use Tests\Concerns\InteractsWithRenderedHtml;
 use Tests\TestCase;
 
 class GenreManagementTest extends TestCase
 {
+    use InteractsWithRenderedHtml;
+
     /** 既存データを消さず、各テストの変更をトランザクション内に限定する。 */
     protected function setUp(): void
     {
@@ -45,13 +45,13 @@ class GenreManagementTest extends TestCase
     public function test_t_5_1_6_12_members_share_create_update_delete(): void
     {
         $this->actingAs(User::factory()->create());
-        $this->assertSame('', $this->xpath($this->get(route('genres.create'))->assertOk())->query('//input[@name="name"]')->item(0)->getAttribute('value'));
+        $this->assertSame('', $this->createDomXPath($this->get(route('genres.create'))->assertOk())->query('//input[@name="name"]')->item(0)->getAttribute('value'));
         $this->post(route('genres.store'), ['name' => '  新規名  ', 'user_id' => 999])->assertRedirect(route('genres.index'))->assertSessionHas('success', 'ジャンルを登録しました。');
         $this->get(route('genres.index'))->assertSee('ジャンルを登録しました。');
         $genre = Genre::where('name', '新規名')->firstOrFail();
         $this->actingAs(User::factory()->create());
         $edit = $this->get(route('genres.edit', $genre))->assertOk();
-        $this->assertSame('新規名', $this->xpath($edit)->query('//input[@name="name"]')->item(0)->getAttribute('value'));
+        $this->assertSame('新規名', $this->createDomXPath($edit)->query('//input[@name="name"]')->item(0)->getAttribute('value'));
         $this->put(route('genres.update', $genre), ['name' => '新規名'])->assertRedirect(route('genres.index'));
         $this->put(route('genres.update', $genre), ['name' => ' 更新名 '])->assertRedirect(route('genres.index'))->assertSessionHas('success', 'ジャンルを更新しました。');
         $this->get(route('genres.index'))->assertSee('更新名')->assertSee('ジャンルを更新しました。');
@@ -155,7 +155,7 @@ class GenreManagementTest extends TestCase
         $response = $this->get(route('genres.index'))->assertOk();
         $allGenres = $baseline->concat($genres);
         $this->assertSame($allGenres->pluck('id')->all(), $response->viewData('genres')->modelKeys());
-        $xpath = $this->xpath($response);
+        $xpath = $this->createDomXPath($response);
         $this->assertSame($allGenres->count(), $xpath->query('//tbody/tr')->length);
         foreach ($allGenres as $i => $genre) {
             $row = $xpath->query('//tbody/tr')->item($i);
@@ -199,7 +199,7 @@ class GenreManagementTest extends TestCase
             $this->assertSame($count, $books->total());
             $pageIds = array_slice($expected, ($page - 1) * 10, 10);
             $this->assertSame($pageIds, $books->getCollection()->modelKeys());
-            $xpath = $this->xpath($response);
+            $xpath = $this->createDomXPath($response);
             $links = $xpath->query('//a[contains(@class,"block border rounded-lg")]');
             $this->assertSame(count($pageIds), $links->length);
             foreach ($pageIds as $i => $id) {
@@ -233,7 +233,7 @@ class GenreManagementTest extends TestCase
             $form = $method === 'POST' ? route('genres.create') : route('genres.edit', $genre);
             $this->from('https://outside.example/')->call($method, $url, ['name' => $name])->assertRedirect($form);
             $response = $this->get($form)->assertOk();
-            $xpath = $this->xpath($response);
+            $xpath = $this->createDomXPath($response);
             $this->assertSame(is_string($name) ? trim($name) : '', $xpath->query('//input[@name="name"]')->item(0)->getAttribute('value'));
             $this->assertSame($message, trim($xpath->query('//input[@name="name"]/following-sibling::p')->item(0)->textContent));
             $this->assertSame($before, DB::table('genres')->orderBy('id')->get()->toJson());
@@ -379,7 +379,7 @@ CHILD;
             $before = $genre->fresh()->getAttributes();
             $form = $method === 'POST' ? route('genres.create') : route('genres.edit', $genre);
             $this->call($method, $method === 'POST' ? route('genres.store') : route('genres.update', $genre), ['name' => $name])->assertRedirect($form);
-            $xpath = $this->xpath($this->get($form)->assertOk());
+            $xpath = $this->createDomXPath($this->get($form)->assertOk());
             $this->assertSame($name, $xpath->query('//input[@name="name"]')->item(0)->getAttribute('value'));
             $this->assertSame('そのジャンル名は既に使用されています。', trim($xpath->query('//input[@name="name"]/following-sibling::p')->item(0)->textContent));
             $this->assertSame($before, $genre->fresh()->getAttributes());
@@ -426,20 +426,5 @@ CHILD;
                 $this->assertSame($before, $genre->fresh()->getAttributes());
             }
         }
-    }
-
-    /** 描画されたフォーム・一覧をDOM単位で照合する。 */
-    private function xpath(TestResponse $response): DOMXPath
-    {
-        $document = new DOMDocument;
-        $previous = libxml_use_internal_errors(true);
-        try {
-            $document->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
-        } finally {
-            libxml_clear_errors();
-            libxml_use_internal_errors($previous);
-        }
-
-        return new DOMXPath($document);
     }
 }
