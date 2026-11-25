@@ -1,6 +1,6 @@
 # 実装Issue一覧
 
-作成日: 2026-11-19 / 最終同期日: 2026-11-23
+作成日: 2026-11-19 / 最終同期日: 2026-11-26（Issue #7のみ追加同期）
 
 設計書の12実装単位を、1単位1件でGitHub Issueに登録した。各本文の控えをこのディレクトリに保存する。仕様の正本は[設計書](../design/README.md)とし、Issue作成は実装・受け入れ確認の完了を示さない。
 
@@ -20,6 +20,8 @@
 | 10. 評価ランキングを閲覧できる | [#10](https://github.com/Tomoyuki-Kuge/bookshelf-app/issues/10) | [本文](10-ranking.md) |
 | 11. 公開書籍APIを利用できる | [#11](https://github.com/Tomoyuki-Kuge/bookshelf-app/issues/11) | [本文](11-public-books-api.md) |
 | 12. 基本要件を通して確認する（仕上げ） | [#12](https://github.com/Tomoyuki-Kuge/bookshelf-app/issues/12) | [本文](12-integration.md) |
+
+2026-11-26、Issue #7の現状・検証補足・実装準備の承認を本文の控えへ追加同期した。他Issueの再同期・再検証は行っていない。
 
 ## 着手順と確認時期
 

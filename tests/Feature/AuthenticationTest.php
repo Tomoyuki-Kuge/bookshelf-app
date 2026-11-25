@@ -479,14 +479,7 @@ class AuthenticationTest extends TestCase
             }
 
             $this->actingAs($kind === 'book' ? $owner : $other);
-            foreach ($requests as [$method, $uri, $input]) {
-                $before = $this->businessDataSnapshot();
-                if ($kind === 'book') {
-                    continue; // 書籍の本人操作はBookManagementTestで保存結果を検証する。
-                }
-                $this->call($method, $uri, $input)->assertStatus(501);
-                $this->assertSame($before, $this->businessDataSnapshot(), $method.' '.$uri.' 未実装応答後の全保存値');
-            }
+            // 本人の正常操作はBookManagementTest・ReviewManagementTestで保存結果を検証する。
             $this->get(str_replace('/'.$model->id, '/999999999', $path).'/edit')->assertNotFound();
         }
     }

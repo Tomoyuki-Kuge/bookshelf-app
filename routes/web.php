@@ -5,6 +5,7 @@ use App\Http\Controllers\BookController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\PendingFeatureController;
 use App\Http\Controllers\RegisteredUserController;
+use App\Http\Controllers\ReviewController;
 use App\Models\Book;
 use App\Models\Genre;
 use App\Models\Review;
@@ -16,7 +17,11 @@ Route::bind('book', function (string $value) {
 
     return Book::findOrFail($value);
 });
-Route::model('review', Review::class);
+Route::bind('review', function (string $value) {
+    abort_unless(preg_match('/\A[0-9]+\z/D', $value), 404);
+
+    return Review::findOrFail($value);
+});
 Route::bind('genre', function (string $value) {
     abort_unless(preg_match('/\A[0-9]+\z/D', $value), 404);
 
@@ -43,10 +48,10 @@ Route::get('/genres/{genre}', [GenreController::class, 'show'])->middleware(['au
 Route::get('/genres/{genre}/edit', [GenreController::class, 'edit'])->middleware(['auth'])->name('genres.edit');
 Route::put('/genres/{genre}', [GenreController::class, 'update'])->middleware(['auth'])->name('genres.update');
 Route::delete('/genres/{genre}', [GenreController::class, 'destroy'])->middleware(['auth'])->name('genres.destroy');
-Route::post('/books/{book}/reviews', PendingFeatureController::class)->middleware(['auth'])->name('reviews.store');
-Route::get('/reviews/{review}/edit', PendingFeatureController::class)->middleware(['auth', 'can:update,review'])->name('reviews.edit');
-Route::put('/reviews/{review}', PendingFeatureController::class)->middleware(['auth', 'can:update,review'])->name('reviews.update');
-Route::delete('/reviews/{review}', PendingFeatureController::class)->middleware(['auth', 'can:delete,review'])->name('reviews.destroy');
+Route::post('/books/{book}/reviews', [ReviewController::class, 'store'])->middleware(['auth'])->name('reviews.store');
+Route::get('/reviews/{review}/edit', [ReviewController::class, 'edit'])->middleware(['auth', 'can:update,review'])->name('reviews.edit');
+Route::put('/reviews/{review}', [ReviewController::class, 'update'])->middleware(['auth', 'can:update,review'])->name('reviews.update');
+Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->middleware(['auth', 'can:delete,review'])->name('reviews.destroy');
 Route::post('/reviews/{review}/like', PendingFeatureController::class)->middleware(['auth'])->name('reviews.like');
 Route::post('/books/{book}/favorites', PendingFeatureController::class)->middleware(['auth'])->name('favorites.toggle');
 Route::get('/favorites', PendingFeatureController::class)->middleware(['auth'])->name('favorites.index');
