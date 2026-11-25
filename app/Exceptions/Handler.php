@@ -1,10 +1,14 @@
 <?php
 
+/** 障害応答と機密情報を含めない例外記録を扱う。 */
+
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -17,6 +21,23 @@ class Handler extends ExceptionHandler
     protected function shouldReturnJson($request, Throwable $e)
     {
         return $request->is('api/*') || $request->expectsJson();
+    }
+
+    /** 想定内の応答を維持し、障害時だけデバッグ設定に依存しない安全な応答へ変える。 */
+    protected function renderExceptionResponse($request, Throwable $e)
+    {
+        if ($this->isHttpException($e) && $e->getStatusCode() < 500) {
+            return parent::renderExceptionResponse($request, $e);
+        }
+
+        $status = $this->isHttpException($e) ? $e->getStatusCode() : 500;
+        $headers = $this->isHttpException($e) ? $e->getHeaders() : [];
+        if ($this->shouldReturnJson($request, $e)) {
+            return response()->json(['message' => '処理に失敗しました。時間をおいて再度お試しください。'], $status, $headers);
+        }
+
+        // 元の例外やpreviousを渡さず、Laravelの既定エラー画面だけを描画する。
+        return parent::renderExceptionResponse($request, new HttpException($status, '', null, $headers));
     }
 
     /**
@@ -51,7 +72,14 @@ class Handler extends ExceptionHandler
     public function register(): void
     {
         $this->reportable(function (Throwable $e) {
-            //
+            // 例外本文・SQL・トレースには入力や認証情報が入り得るため記録しない。
+            Log::error('アプリケーションで例外が発生しました。', [
+                'occurred_at' => now()->toIso8601String(),
+                'route' => request()->route()?->uri() ?? 'console',
+                'exception_type' => get_class($e),
+            ]);
+
+            return false;
         });
     }
 }
