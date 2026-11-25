@@ -11,7 +11,11 @@ use App\Models\Review;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 
-Route::model('book', Book::class);
+Route::bind('book', function (string $value) {
+    abort_unless(preg_match('/\A[0-9]+\z/D', $value), 404);
+
+    return Book::findOrFail($value);
+});
 Route::model('review', Review::class);
 Route::bind('genre', function (string $value) {
     abort_unless(preg_match('/\A[0-9]+\z/D', $value), 404);
@@ -27,11 +31,11 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->middleware('auth')->name('logout');
 Route::get('/', [BookController::class, 'index'])->name('books.index');
 Route::get('/books/create', [BookController::class, 'create'])->middleware('auth')->name('books.create');
-Route::post('/books', PendingFeatureController::class)->middleware(['auth'])->name('books.store');
+Route::post('/books', [BookController::class, 'store'])->middleware(['auth'])->name('books.store');
 Route::get('/books/{book}', [BookController::class, 'show'])->whereNumber('book')->name('books.show');
-Route::get('/books/{book}/edit', PendingFeatureController::class)->middleware(['auth', 'can:update,book'])->name('books.edit');
-Route::put('/books/{book}', PendingFeatureController::class)->middleware(['auth', 'can:update,book'])->name('books.update');
-Route::delete('/books/{book}', PendingFeatureController::class)->middleware(['auth', 'can:delete,book'])->name('books.destroy');
+Route::get('/books/{book}/edit', [BookController::class, 'edit'])->middleware(['auth', 'can:update,book'])->name('books.edit');
+Route::put('/books/{book}', [BookController::class, 'update'])->middleware(['auth', 'can:update,book'])->name('books.update');
+Route::delete('/books/{book}', [BookController::class, 'destroy'])->middleware(['auth', 'can:delete,book'])->name('books.destroy');
 Route::get('/genres', [GenreController::class, 'index'])->middleware(['auth'])->name('genres.index');
 Route::get('/genres/create', [GenreController::class, 'create'])->middleware(['auth'])->name('genres.create');
 Route::post('/genres', [GenreController::class, 'store'])->middleware(['auth'])->name('genres.store');

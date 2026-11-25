@@ -481,6 +481,9 @@ class AuthenticationTest extends TestCase
             $this->actingAs($kind === 'book' ? $owner : $other);
             foreach ($requests as [$method, $uri, $input]) {
                 $before = $this->businessDataSnapshot();
+                if ($kind === 'book') {
+                    continue; // 書籍の本人操作はBookManagementTestで保存結果を検証する。
+                }
                 $this->call($method, $uri, $input)->assertStatus(501);
                 $this->assertSame($before, $this->businessDataSnapshot(), $method.' '.$uri.' 未実装応答後の全保存値');
             }
@@ -512,7 +515,7 @@ class AuthenticationTest extends TestCase
             'published_date' => '2027-01-02', 'description' => '更新説明',
             'image_url' => 'https://example.com/deleted-book.jpg', 'genres' => [$genre->id],
         ];
-        // Web削除は接続段階で501のため、物理削除した状態だけをモデルで準備する。
+        // 削除済みの独立した状態をモデルで準備する。
         $this->assertTrue($book->delete());
         $this->assertDatabaseMissing('books', ['id' => $id]);
         $this->actingAs($owner);
