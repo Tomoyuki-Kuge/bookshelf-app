@@ -332,7 +332,7 @@ class AuthenticationTest extends TestCase
         }
         $this->get('/books')->assertStatus(405);
         $this->get('/logout')->assertStatus(405);
-        $this->get('/ranking')->assertStatus(501);
+        $this->get('/ranking')->assertOk();
     }
 
     /** 対応するT-2の認証・導線条件を検証する。 */
