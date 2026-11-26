@@ -4,7 +4,7 @@
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
-use App\Http\Controllers\PendingFeatureController;
+use App\Http\Controllers\RankingController;
 use App\Http\Controllers\RegisteredUserController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ReviewLikeController;
@@ -57,4 +57,4 @@ Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->middle
 Route::post('/reviews/{review}/like', ReviewLikeController::class)->middleware(['auth'])->name('reviews.like');
 Route::post('/books/{book}/favorites', [FavoriteController::class, 'toggle'])->middleware(['auth'])->name('favorites.toggle');
 Route::get('/favorites', [FavoriteController::class, 'index'])->middleware(['auth'])->name('favorites.index');
-Route::get('/ranking', PendingFeatureController::class)->name('ranking.index');
+Route::get('/ranking', [RankingController::class, 'index'])->name('ranking.index');
