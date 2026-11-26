@@ -2,6 +2,7 @@
 
 /** 既存Bladeの認証経路と接続段階の業務経路を定義する。 */
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\PendingFeatureController;
 use App\Http\Controllers\RegisteredUserController;
@@ -54,6 +55,6 @@ Route::get('/reviews/{review}/edit', [ReviewController::class, 'edit'])->middlew
 Route::put('/reviews/{review}', [ReviewController::class, 'update'])->middleware(['auth', 'can:update,review'])->name('reviews.update');
 Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->middleware(['auth', 'can:delete,review'])->name('reviews.destroy');
 Route::post('/reviews/{review}/like', ReviewLikeController::class)->middleware(['auth'])->name('reviews.like');
-Route::post('/books/{book}/favorites', PendingFeatureController::class)->middleware(['auth'])->name('favorites.toggle');
-Route::get('/favorites', PendingFeatureController::class)->middleware(['auth'])->name('favorites.index');
+Route::post('/books/{book}/favorites', [FavoriteController::class, 'toggle'])->middleware(['auth'])->name('favorites.toggle');
+Route::get('/favorites', [FavoriteController::class, 'index'])->middleware(['auth'])->name('favorites.index');
 Route::get('/ranking', PendingFeatureController::class)->name('ranking.index');
