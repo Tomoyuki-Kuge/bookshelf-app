@@ -23,6 +23,31 @@ class Handler extends ExceptionHandler
         return $request->is('api/*') || $request->expectsJson();
     }
 
+    /** APIだけに確定済みのエラー形式を適用し、HTTPヘッダーを維持する。 */
+    public function render($request, Throwable $e)
+    {
+        if ($request->is('api/*')) {
+            if ($e instanceof ValidationException) {
+                return response()->json(['message' => '入力内容に誤りがあります。', 'errors' => $e->errors()], 422);
+            }
+            $prepared = $this->prepareException($e);
+            if ($this->isHttpException($prepared)) {
+                $status = $prepared->getStatusCode();
+                $body = match ($status) {
+                    400 => ['message' => 'JSONの形式が正しくありません。'],
+                    404 => ['error' => '書籍が見つかりませんでした。'],
+                    405 => ['message' => 'この操作方法には対応していません。'],
+                    default => null,
+                };
+                if ($body !== null) {
+                    return response()->json($body, $status, $prepared->getHeaders());
+                }
+            }
+        }
+
+        return parent::render($request, $e);
+    }
+
     /** 想定内の応答を維持し、障害時だけデバッグ設定に依存しない安全な応答へ変える。 */
     protected function renderExceptionResponse($request, Throwable $e)
     {
