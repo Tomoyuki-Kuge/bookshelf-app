@@ -1,0 +1,50 @@
+{
+  "tests": 362,
+  "assertions": 9727,
+  "errors": 0,
+  "failures": 0,
+  "skipped": 0,
+  "coverage_percent": 97.9,
+  "coverage_files": 46,
+  "covered_statements": 464,
+  "statements": 474,
+  "php_files_equal": 106,
+  "php_file_comparison_includes_bootstrap_and_public_entrypoint": true,
+  "bootstrap_and_public_entrypoint_equal": true,
+  "protected_files_unchanged": 113,
+  "protected_file_scope": [
+    "app",
+    "resources/views",
+    "docs/reference",
+    "docs/CODEX_HANDOFF.md"
+  ],
+  "business_tables_start_end_equal": true,
+  "business_table_counts": {
+    "users": 0,
+    "books": 0,
+    "genres": 0,
+    "book_genre": 0,
+    "reviews": 0,
+    "favorites": 0,
+    "review_likes": 0
+  },
+  "screenshots": 65,
+  "ac_checked": 43,
+  "ac_not_met": [
+    "AC-12-04"
+  ],
+  "child_process_coverage_merged": false,
+  "real_http_csrf_routes": 14,
+  "real_http_csrf_assertions": 365,
+  "genre_management_tests": 23,
+  "genre_management_assertions": 576,
+  "mutation_failures_detected": 3,
+  "mutation_cases": [
+    "login_csrf_exemption",
+    "genre_precheck_favorite_deletion",
+    "genre_restrict_favorite_deletion"
+  ],
+  "execution_date": "2026-11-27",
+  "evidence_review_date": "2026-11-28",
+  "dedicated_container_and_copy_removed": true
+}

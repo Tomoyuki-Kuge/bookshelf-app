@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Http\Requests\GenreRequest;
 use App\Models\Book;
 use App\Models\Genre;
+use App\Models\Review;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
@@ -268,12 +269,12 @@ class GenreManagementTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
         $genre = Genre::factory()->create();
-        $book = Book::factory()->create();
+        $book = $this->createDeletionPreservationData();
         $book->genres()->attach($genre);
-        $before = [$genre->fresh()->getAttributes(), $book->fresh()->getAttributes(), DB::table('book_genre')->get()->toJson()];
+        $before = $this->businessSnapshot();
         $this->delete(route('genres.destroy', $genre))->assertRedirect(route('genres.index'))->assertSessionHas('error', 'このジャンルには書籍が紐付いているため削除できません。');
         $this->get(route('genres.index'))->assertSee('このジャンルには書籍が紐付いているため削除できません。');
-        $this->assertSame($before, [$genre->fresh()->getAttributes(), $book->fresh()->getAttributes(), DB::table('book_genre')->get()->toJson()]);
+        $this->assertSame($before, $this->businessSnapshot());
     }
 
     /** T-5-11：事前確認後の挿入をイベントで模擬し、実RESTRICTと拒否応答を確認する。 */
@@ -281,14 +282,46 @@ class GenreManagementTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
         $genre = Genre::factory()->create();
-        $book = Book::factory()->create();
-        $before = [$genre->fresh()->getAttributes(), $book->fresh()->getAttributes()];
-        Genre::deleting(function (Genre $target) use ($book) {
+        $book = $this->createDeletionPreservationData();
+        $before = $this->businessSnapshot();
+        $linkAdded = false;
+        Genre::deleting(function (Genre $target) use ($book, &$before, &$linkAdded) {
             $book->genres()->attach($target);
+            // 既知の前提変更である追加1行だけを加え、拒否処理の先行副作用を期待値へ混ぜない。
+            $before['book_genre'][] = (array) DB::table('book_genre')->where('book_id', $book->id)->where('genre_id', $target->id)->first();
+            usort($before['book_genre'], fn ($left, $right) => $left['id'] <=> $right['id']);
+            $linkAdded = true;
         });
         $this->delete(route('genres.destroy', $genre))->assertRedirect(route('genres.index'))->assertSessionHas('error', 'このジャンルには書籍が紐付いているため削除できません。');
-        $this->assertSame($before, [$genre->fresh()->getAttributes(), $book->fresh()->getAttributes()]);
+        $this->assertTrue($linkAdded, '事前確認後に紐付けが追加されたこと');
+        $this->assertSame($before, $this->businessSnapshot());
         $this->assertDatabaseHas('book_genre', ['book_id' => $book->id, 'genre_id' => $genre->id]);
+    }
+
+    /** 削除対象側と無関係側の全関連に実データを置き、誤った連鎖削除も検出する。 */
+    private function createDeletionPreservationData(): Book
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $otherGenre = Genre::factory()->create();
+        $books = [];
+        foreach ([$owner, $other] as $index => $user) {
+            $book = Book::factory()->create(['user_id' => $user->id]);
+            $book->genres()->attach($otherGenre);
+            $review = Review::factory()->create(['user_id' => $user->id, 'book_id' => $book->id, 'rating' => $index + 3, 'comment' => '削除拒否で維持するレビュー'.$index]);
+            $other->favoriteBooks()->attach($book);
+            $owner->likedReviews()->attach($review);
+            $books[] = $book;
+        }
+
+        return $books[0];
+    }
+
+    /** 拒否前後で日時・関連IDを含む業務7表の全保存値をDBから取り直す。 */
+    private function businessSnapshot(): array
+    {
+        return collect(['users', 'books', 'genres', 'book_genre', 'reviews', 'favorites', 'review_likes'])
+            ->mapWithKeys(fn ($table) => [$table => DB::table($table)->orderBy('id')->get()->map(fn ($row) => (array) $row)->all()])->all();
     }
 
     /** T-5-11：独立プロセスの削除が挿入トランザクションを待つことを観測し、実並行RESTRICTを確認する。 */

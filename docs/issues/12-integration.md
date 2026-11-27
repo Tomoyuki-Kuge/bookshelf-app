@@ -4,7 +4,7 @@
 
 - 実装単位: 12 / 12
 - 対象: F-28、全基本機能の接続
-- 現状（2026-11-23、main `062b9aa`時点）: 共通データ基盤・認証・Seederは実装済み。書籍一覧と書籍登録フォームの読み取り以外の業務経路には一時的な501が残り、公開APIは未実装。基盤・認証・Seeder等の自動テストは存在し、PR #16の最終結果は61テスト・1,858アサーション合格。全基本機能の横断確認・カバレッジ測定は未実施。
+- 現状（2026-11-27、main `329b0df`時点）: 共通データ基盤・認証・Seeder・書籍／ジャンル／レビュー管理・いいね・お気に入り・ランキング・公開書籍APIの接続は実装済み。公開APIは[PR #26](https://github.com/Tomoyuki-Kuge/bookshelf-app/pull/26)でマージ済み。現在のWeb・APIルートに501の仮応答はないが、ルートから参照されない`PendingFeatureController`が残る。単位12の横断確認、未確認ACの回収、全基本機能を対象としたカバレッジ再測定は未実施。
 - 設計: [README.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/README.md)、[features.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/features.md)、[screens.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/screens.md)、[permissions-api.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/permissions-api.md)、[data.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/data.md)、[behavior.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/behavior.md)、[questions.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md)、[test_case.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/test_case.md)
 
 ## 受け入れ条件（AC）
@@ -39,14 +39,17 @@
 
 - 対応するテスト観点: T-12-1〜T-12-11（[test_case.md](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/test_case.md#12-基本要件を通して確認する仕上げ)）。
 - 正常系・異常系・境界値と、（※仕様保留中）の観点を分けて扱う。未承認の推奨案を期待値にしない。
-- 基盤・認証・Seeder等の既存テストと各画面確認報告はあるが、単位12の横断確認とカバレッジ測定は未実施。[PR #16](https://github.com/Tomoyuki-Kuge/bookshelf-app/pull/16)の61テスト・1,858アサーション合格を全基本機能の完成扱いにしない。本更新ではテスト・画面操作を再実行していない。
+- 最新の既存検証は、Issue #11の最終全349テスト・8,859アサーション成功（失敗・エラー・スキップ0）。公開APIは68件・1,015アサーション、APIの実並行検証は8件・79アサーション成功。PHP 8.5・MySQL 8.4のtesting DB限定で、元の`.env`を子プロセスからも読まない隔離構成を使用した。詳細は[Issue #11検証結果](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/uat-shots/issue-11/README.md)を参照する。
+- 公開GETのAC-11-01〜04と先行単位の画面確認報告はあるが、AC-12-01〜04の横断確認や単位1〜11のその他の未確認ACを完了扱いにしない。既存報告とacceptance.mdのチェック状態を照合し、確認済み・未確認・仕様保留を区別する。
+- 初回カバレッジは2026-11-26のIssue #7時点で97.1%（266/274行）。現在の全基本機能を対象とした再測定値ではなく、単位12での測定・目標達成は未確認。本更新ではテスト・画面操作を再実行していない。
 
 ## 確定事項と残る確認事項
 
-- [回答状況の正本](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md)：Q-18・22〜26とIssue #1のDB物理条件は承認済み。Q-19は表示方針・認証7文言・ログイン入力エラー統一が確定し、未指定の個別文言のみ（※仕様保留中）。認証の未指定の上限・重複等は従来の暫定採用を維持する。
-- [Q-23](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-23保存失敗同時操作障害時の扱い)：CSRF失効は既定419画面・入力非保持・再入力（認証失効時は再ログイン）。不正JSON400・非対応メソッド405・想定外障害500とAPIの正式文言、応答へのSQL・スタックトレース・認証情報非公開は確定済み。
-- [Q-23](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-23保存失敗同時操作障害時の扱い)：ログはアプリのログ領域に日次出力・14日保持。日時・経路・例外種別を記録し、パスワード・トークン・リクエスト全文を残さない。保存先・期間の設定と運用条件との照合は後続の実装確認として残す。
-- [測定予定](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/test_case.md#カバレッジ測定の実行予定)：単位6・7が揃った段階で初回カバレッジ測定、単位12で再測定して60%超を確認する。現時点の測定済み・目標達成とは扱わない。
+- [回答状況の正本](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md)：Q-18・22〜26とIssue #1のDB物理条件は承認済み。Q-19は表示方針・認証7文言・ログイン入力エラー統一が確定。認証の従来の暫定採用に加え、ジャンル・書籍・レビュー・APIの個別文言も各Issueのユーザー承認で暫定採用済みで、クライアントによる正式確定のみ（※仕様保留中）。暫定文言での実装・検証と正式確定を区別する。
+- [Q-23](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-23保存失敗同時操作障害時の扱い)：CSRF失効は既定419画面・入力非保持・再入力（認証失効時は再ログイン）。不正JSON400・非対応メソッド405・想定外障害500とAPIの正式文言、応答へのSQL・スタックトレース・認証情報非公開は確定済み。既存の419例外応答テストと、実際のCSRFトークン不一致をミドルウェアが拒否する検証を区別する。お気に入り・いいね経路での実際の拒否は未確認。
+- [Q-23](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/questions.md#q-23保存失敗同時操作障害時の扱い)：ログはアプリのログ領域に日次出力・14日保持。日時・経路・例外種別を記録し、パスワード・トークン・リクエスト全文を残さない。`config/logging.php`の日次・14日保持設定と、単一ファイルへ出力する既存の障害ログ検証はある。日次出力・保持の動作確認および実環境の運用条件との照合は残る。保護対象`.env`による設定上書き状況は調査しない。
+- [カバレッジ測定](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/docs/design/test_case.md#カバレッジ測定の実行予定)：初回測定済み。条件と未到達箇所は[Issue #7検証結果](https://github.com/Tomoyuki-Kuge/bookshelf-app/blob/main/uat-shots/issue-7/README.md#初回カバレッジ)を参照する。単位12では全基本機能のテストで再測定し、60%超を確認する。
+- 既知の表示制約：幅390pxのランキングでレビュー件数と評価バッジが重なる。長い確認用ジャンル名では削除文字の一部が切れる。完成済みBladeの変更禁止を維持し、表示品質を解消済みとは扱わない。対処にBlade変更が必要なら、制約との調整を先に行う。
 
 ### 設計・決定事項の扱い
 
