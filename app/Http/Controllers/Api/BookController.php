@@ -123,7 +123,7 @@ class BookController extends Controller
         $errors = [];
         foreach ($requested as $index => $id) {
             if (! in_array($id, $existing, true)) {
-                $errors['genres.'.$index] = '選択したジャンルが存在しません。';
+                $errors['genres.'.$index] = '選択されたジャンルは存在しません。';
             }
         }
         if ($errors !== []) {

@@ -194,18 +194,18 @@ class BookManagementTest extends TestCase
         }
         $cases[] = ['isbn', '@duplicate', ['isbn' => ['そのISBNは既に使用されています。']]];
         foreach (['2026-02-30', 'not-a-date'] as $value) {
-            $cases[] = ['published_date', $value, ['published_date' => ['出版日は有効な日付で入力してください。']]];
+            $cases[] = ['published_date', $value, ['published_date' => ['出版日は有効な日付形式で入力してください。']]];
         }
         foreach (['ftp://example.com/a', 'not-url'] as $value) {
-            $cases[] = ['image_url', $value, ['image_url' => ['画像URLはHTTPまたはHTTPSのURLで入力してください。']]];
+            $cases[] = ['image_url', $value, ['image_url' => ['画像URLは有効なURL形式で入力してください。']]];
         }
         foreach ([null, [], '@omitted'] as $value) {
-            $cases[] = ['genres', $value, ['genres' => ['ジャンルを1つ以上選択してください。']]];
+            $cases[] = ['genres', $value, ['genres' => ['ジャンルは1つ以上選択してください。']]];
         }
 
         return array_merge($cases, [
             ['genres', '1', ['genres' => ['ジャンルは配列で指定してください。']]],
-            ['genres', ['@valid', 999999999], ['genres.1' => ['選択したジャンルが存在しません。']]],
+            ['genres', ['@valid', 999999999], ['genres.1' => ['選択されたジャンルは存在しません。']]],
             ['genres', ['@valid', 'bad'], ['genres.1' => ['ジャンルIDは整数で指定してください。']]],
             ['genres', ['@valid', [1]], ['genres.1' => ['ジャンルIDは整数で指定してください。']]],
             ['genres', ['@valid', '@valid'], ['genres.0' => ['同じジャンルを重複して選択できません。'], 'genres.1' => ['同じジャンルを重複して選択できません。']]],
@@ -404,7 +404,7 @@ class BookManagementTest extends TestCase
                 DB::table('book_genre')->whereIn('genre_id', $input['genres'])->delete();
                 DB::table('genres')->whereIn('id', $input['genres'])->delete();
             });
-            $this->call($method, $url, $input)->assertRedirect($form)->assertSessionHasErrors(['genres' => BookRequest::missingGenreMessage()]);
+            $this->call($method, $url, $input)->assertRedirect($form)->assertSessionHasErrors(['genres' => '選択されたジャンルは存在しません。']);
             $this->assertSame($before, $this->snapshot());
             Book::flushEventListeners();
             $exception = new QueryException('mysql', 'secret SQL', ['password-secret'], new \PDOException('unexpected'));
@@ -499,7 +499,7 @@ CHILD;
             } else {
                 $this->assertSame($book->title, $saved->title);
                 $field = $case === 'isbn' ? 'isbn' : 'genres';
-                $this->assertArrayHasKey($field, $result['errors']);
+                $this->assertSame([$field => [$case === 'isbn' ? 'そのISBNは既に使用されています。' : '選択されたジャンルは存在しません。']], $result['errors']);
                 $this->assertSame(0, $connection->table('book_genre')->where('book_id', $book->id)->count());
             }
         } finally {

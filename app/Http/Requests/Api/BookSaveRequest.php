@@ -51,13 +51,13 @@ class BookSaveRequest extends FormRequest
         ];
     }
 
-    /** Webと共通の暫定文言へAPI固有条件を加える。 */
+    /** Webと共通の文言へAPI固有条件を加える。 */
     public function messages(): array
     {
         return array_merge((new BookRequest)->messages(), [
             'user_id.required' => 'ユーザーIDは必須です。',
             'user_id.exists' => '指定したユーザーが存在しません。',
-            'published_date.date_format' => '出版日は有効な日付で入力してください。',
+            'published_date.date_format' => '出版日は有効な日付形式で入力してください。',
         ]);
     }
 }

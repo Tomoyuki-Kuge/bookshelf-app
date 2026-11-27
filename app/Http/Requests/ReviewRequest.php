@@ -30,7 +30,7 @@ class ReviewRequest extends FormRequest
         ];
     }
 
-    /** Q-19で暫定採用されたレビューの日本語文言を返す。 */
+    /** Q-19のQA 行27で正式確定したレビューの日本語文言を返す。 */
     public function messages(): array
     {
         return [

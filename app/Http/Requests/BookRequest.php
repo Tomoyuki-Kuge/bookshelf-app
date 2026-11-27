@@ -33,7 +33,7 @@ class BookRequest extends FormRequest
         ];
     }
 
-    /** Q-19で暫定採用された日本語文言を欄へ対応付ける。 */
+    /** Q-19の正式文言と未指定項目の暫定文言を欄へ対応付ける。 */
     public function messages(): array
     {
         $messages = [];
@@ -47,10 +47,10 @@ class BookRequest extends FormRequest
             'isbn.size' => 'ISBNは13桁で入力してください。',
             'isbn.regex' => 'ISBNは半角数字で入力してください。',
             'isbn.unique' => self::duplicateMessage(),
-            'published_date.date' => '出版日は有効な日付で入力してください。',
-            'image_url.url' => '画像URLはHTTPまたはHTTPSのURLで入力してください。',
-            'genres.required' => 'ジャンルを1つ以上選択してください。',
-            'genres.min' => 'ジャンルを1つ以上選択してください。',
+            'published_date.date' => '出版日は有効な日付形式で入力してください。',
+            'image_url.url' => '画像URLは有効なURL形式で入力してください。',
+            'genres.required' => 'ジャンルは1つ以上選択してください。',
+            'genres.min' => 'ジャンルは1つ以上選択してください。',
             'genres.array' => 'ジャンルは配列で指定してください。',
             'genres.*.integer' => 'ジャンルIDは整数で指定してください。',
             'genres.*.distinct' => '同じジャンルを重複して選択できません。',
@@ -67,7 +67,7 @@ class BookRequest extends FormRequest
     /** 保存前に消失した選択先を入力エラーとして扱う。 */
     public static function missingGenreMessage(): string
     {
-        return '選択したジャンルが存在しません。';
+        return '選択されたジャンルは存在しません。';
     }
 
     /** 全解除を既存選択へ戻さないよう明示する。 */
