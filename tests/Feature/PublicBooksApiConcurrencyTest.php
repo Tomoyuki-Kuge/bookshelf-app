@@ -127,6 +127,9 @@ CHILD;
                     }, $result['body']['errors']);
                 }
             }
+            if ($case === 'genre') {
+                $this->assertSame(['genres.0' => ['選択されたジャンルは存在しません。']], $result['body']['errors']);
+            }
         } finally {
             try {
                 if ($connection->transactionLevel()) {

@@ -266,10 +266,10 @@ class PublicBooksApiTest extends TestCase
 
     public static function confirmedErrors(): array
     {
-        return [['title_required'], ['isbn_size'], ['isbn_duplicate'], ['missing_user'], ['genres_object']];
+        return [['title_required'], ['isbn_size'], ['isbn_duplicate'], ['missing_user'], ['genres_object'], ['published_date'], ['image_url'], ['genres_empty'], ['genres_missing'], ['genres_nonexistent']];
     }
 
-    /** T-11-14・23：Q-05・22の確定文言を項目キーと文字列配列まで厳密比較する。 */
+    /** T-11-14・23：Q-05・19・22の確定文言を項目キーと文字列配列まで厳密比較する。 */
     #[DataProvider('confirmedErrors')]
     public function test_confirmed_body_validation_messages(string $case): void
     {
@@ -283,6 +283,10 @@ class PublicBooksApiTest extends TestCase
             'isbn_duplicate' => ['isbn' => ['そのISBNは既に使用されています。']],
             'missing_user' => ['user_id' => ['指定したユーザーが存在しません。']],
             'genres_object' => ['genres' => ['ジャンルは配列で指定してください。']],
+            'published_date' => ['published_date' => ['出版日は有効な日付形式で入力してください。']],
+            'image_url' => ['image_url' => ['画像URLは有効なURL形式で入力してください。']],
+            'genres_empty', 'genres_missing' => ['genres' => ['ジャンルは1つ以上選択してください。']],
+            'genres_nonexistent' => ['genres.1' => ['選択されたジャンルは存在しません。']],
         };
         match ($case) {
             'title_required' => $input['title'] = '',
@@ -290,6 +294,11 @@ class PublicBooksApiTest extends TestCase
             'isbn_duplicate' => $input['isbn'] = $book->isbn,
             'missing_user' => $input['user_id'] = (int) User::max('id') + 1,
             'genres_object' => $input['genres'] = (object) ['0' => $input['genres'][0]],
+            'published_date' => $input['published_date'] = '2026-02-30',
+            'image_url' => $input['image_url'] = 'ftp://example.com/book.jpg',
+            'genres_empty' => $input['genres'] = [],
+            'genres_missing' => $input = array_diff_key($input, ['genres' => true]),
+            'genres_nonexistent' => $input['genres'][] = (int) Genre::max('id') + 1,
         };
         foreach (['POST' => '/api/v1/books', 'PUT' => '/api/v1/books/'.$target->id] as $method => $url) {
             $before = $this->snapshot();
@@ -521,7 +530,7 @@ class PublicBooksApiTest extends TestCase
 
     /** T-11-24：検証後の参照消失と既知一意制約を模擬し、全体取消と要素キーを確認する。 */
     #[DataProvider('failureCases')]
-    public function test_simulated_reference_disappearance_and_database_errors(string $case): void
+    public function test_simulated_reference_disappearance_and_database_errors(string $case, string $method): void
     {
         $input = $this->input(['isbn' => '00000000000'.match ($case) {
             'user' => '11', 'genre' => '12', 'isbn' => '13', default => '14'
@@ -542,17 +551,21 @@ class PublicBooksApiTest extends TestCase
             }
             $beforeRefusal = $this->snapshot();
         });
-        $response = $this->putJson('/api/v1/books/'.$book->id, $input)->assertStatus($case === 'unexpected' ? 500 : 422);
+        $url = $method === 'POST' ? '/api/v1/books' : '/api/v1/books/'.$book->id;
+        $response = $this->json($method, $url, $input)->assertStatus($case === 'unexpected' ? 500 : 422);
         if ($case !== 'unexpected') {
             $response->assertJsonValidationErrors(match ($case) {
                 'user' => 'user_id', 'genre' => 'genres.0', default => 'isbn'
             });
+        }
+        if ($case === 'genre') {
+            $this->assertSame(['genres.0' => ['選択されたジャンルは存在しません。']], $response->json('errors'));
         }
         $this->assertSame($beforeRefusal, $this->snapshot());
     }
 
     public static function failureCases(): array
     {
-        return [['user'], ['genre'], ['isbn'], ['unexpected']];
+        return [['user', 'PUT'], ['genre', 'POST'], ['genre', 'PUT'], ['isbn', 'PUT'], ['unexpected', 'PUT']];
     }
 }
