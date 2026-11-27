@@ -43,7 +43,7 @@ GitとDocker Compose v2が使えるDocker環境を用意し、Dockerを起動し
    cp .env.example .env
    ```
 
-   `.env.example`の既定値は以下です。`.env`で接続先を確認し、ポートが使用中なら`APP_PORT`・`FORWARD_DB_PORT`を変更してください。`WWWUSER`・`WWWGROUP`は、それぞれ`id -u`・`id -g`で確認したホスト側のIDに合わせます。
+   `.env.example`の既定値は以下です。`.env`で接続先を確認し、ポートが使用中なら`APP_PORT`・`FORWARD_DB_PORT`を変更してください。ComposeはVite用の5173番も公開するため、使用中なら`.env`に未使用の`VITE_PORT`を指定します。phpMyAdminのポートは手順3で確認します。`WWWUSER`・`WWWGROUP`は、それぞれ`id -u`・`id -g`で確認したホスト側のIDに合わせます。
 
    ```dotenv
    APP_URL=http://localhost
@@ -58,6 +58,14 @@ GitとDocker Compose v2が使えるDocker環境を用意し、Dockerを起動し
    ```
 
    アプリからDBへは`mysql:3306`、ホストのDBクライアントからは`127.0.0.1:3307`に接続します。Webポートを変更した場合は`APP_URL`にもそのポートを付けます。`.env`はGitへ追加しません。
+
+   同じリポジトリを別の場所にもcloneし、両方のフォルダ名が`bookshelf-app`の場合は、初回起動前に`.env`へ環境ごとに異なる`COMPOSE_PROJECT_NAME`を指定してください。指定しないとComposeのプロジェクト名が重なり、停止中の環境を含め、既存コンテナやDBボリュームを共有することがあります。別clone用の例です。
+
+   ```dotenv
+   COMPOSE_PROJECT_NAME=bookshelf_readme_check
+   ```
+
+   この名前は次回起動時も同じ値を使います。複数環境を同時に起動する場合は、上記の公開ポートも環境ごとに分けてください。
 
 2. clone直後は`vendor/`とSailがないため、最初の依存インストールを一時的なComposerコンテナで行います。[このComposerイメージはPHP 8.5ベース](https://github.com/composer/docker/blob/02e6f05ae4effb867a27ea968f667c613f610249/latest/Dockerfile)です。
 
@@ -124,6 +132,8 @@ GitとDocker Compose v2が使えるDocker環境を用意し、Dockerを起動し
 
 管理者用アカウントはありません。[会員登録](http://localhost/register)から新しい利用者も作成できます。上記の初期アカウントと共通パスワードはローカル確認用です。
 
+Chromeでは、この初期パスワードでのログイン後に、Google パスワード マネージャーの「パスワードを変更してください」という警告が表示される場合があります。ローカル確認中に表示されたら「OK」でダイアログを閉じてからページを操作してください。ブラウザ側のダイアログが開いている間は、ページのクリック操作が進まないことがあります。
+
 ## ひととおり触ってみる
 
 1. ログアウト状態で書籍一覧を開き、1ページ目の10冊と次ページの1冊を確認します。本の詳細でジャンル・レビュー・いいね数を見て、ランキングも開きます。
@@ -135,6 +145,8 @@ GitとDocker Compose v2が使えるDocker環境を用意し、Dockerを起動し
 7. 山田太郎へ戻り、手順3で登録した確認用の本を削除します。お気に入り一覧からその本が消え、ジャンル管理ではジャンル本体が残ることを確認します。書籍と一緒にレビュー・そのいいねも削除されます。
 
 手動の確認項目は[受け入れ条件](docs/design/acceptance.md)、確認済み範囲と残件は[受け入れ報告](docs/acceptance-report.md)を参照してください。幅390pxではランキングの件数と評価の重なり、長いジャンル名で操作列のはみ出しが記録されており、AC-12-04は未達のままです。
+
+GitHubから別cloneを作って行った初回構築と、この道順の画面確認は[README手順の確認報告](uat-shots/readme-clone-check/README.md)に記録しています。操作環境の中断・追加操作、DB内部の未確認範囲も同報告を参照してください。
 
 ## 公開API
 
